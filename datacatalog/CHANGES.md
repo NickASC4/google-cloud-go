@@ -1,5 +1,50 @@
 # Changes
 
+## [1.24.3](https://github.com/googleapis/google-cloud-go/compare/datacatalog/v1.24.2...datacatalog/v1.24.3) (2025-01-08)
+
+
+### Documentation
+
+* **datacatalog:** A comment for field `parent` in message `.google.cloud.datacatalog.v1beta1.CreateTagRequest` is changed ([9d60b40](https://github.com/googleapis/google-cloud-go/commit/9d60b40e9ce47aba2f027b42bfdbfed43339df6d))
+
+## [1.24.2](https://github.com/googleapis/google-cloud-go/compare/datacatalog/v1.24.1...datacatalog/v1.24.2) (2025-01-02)
+
+
+### Bug Fixes
+
+* **datacatalog:** Update golang.org/x/net to v0.33.0 ([e9b0b69](https://github.com/googleapis/google-cloud-go/commit/e9b0b69644ea5b276cacff0a707e8a5e87efafc9))
+
+## [1.24.1](https://github.com/googleapis/google-cloud-go/compare/datacatalog/v1.24.0...datacatalog/v1.24.1) (2024-12-18)
+
+
+### Documentation
+
+* **datacatalog:** Fix markdown reference in `TagTemplate.is_publicly_readable` comment ([4254053](https://github.com/googleapis/google-cloud-go/commit/42540530e44e5f331e66e0777c4aabf449f5fd90))
+
+## [1.24.0](https://github.com/googleapis/google-cloud-go/compare/datacatalog/v1.23.0...datacatalog/v1.24.0) (2024-11-21)
+
+
+### Features
+
+* **datacatalog:** A new enum `CatalogUIExperience` is added ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new enum `TagTemplateMigration` is added ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new field `dataplex_transfer_status` is added to message `.google.cloud.datacatalog.v1.Tag` ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new field `transferred_to_dataplex` is added to message `.google.cloud.datacatalog.v1.EntryGroup` ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new message `MigrationConfig` is added ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new message `OrganizationConfig` is added ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new message `RetrieveConfigRequest` is added ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new message `RetrieveEffectiveConfigRequest` is added ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new message `SetConfigRequest` is added ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new method `RetrieveConfig` is added to service `DataCatalog` ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new method `RetrieveEffectiveConfig` is added to service `DataCatalog` ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new method `SetConfig` is added to service `DataCatalog` ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+* **datacatalog:** A new value `TRANSFERRED` is added to enum `DataplexTransferStatus` ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+
+
+### Documentation
+
+* **datacatalog:** A comment for message `EntryGroup` is changed ([1036734](https://github.com/googleapis/google-cloud-go/commit/1036734d387691f6264bd7a51c9e19567815a3d2))
+
 ## [1.23.0](https://github.com/googleapis/google-cloud-go/compare/datacatalog/v1.22.2...datacatalog/v1.23.0) (2024-11-14)
 
 

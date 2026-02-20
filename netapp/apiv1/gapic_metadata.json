@@ -115,6 +115,11 @@
                 "EncryptVolumes"
               ]
             },
+            "EstablishPeering": {
+              "methods": [
+                "EstablishPeering"
+              ]
+            },
             "GetActiveDirectory": {
               "methods": [
                 "GetActiveDirectory"
@@ -250,6 +255,11 @@
                 "SwitchActiveReplicaZone"
               ]
             },
+            "SyncReplication": {
+              "methods": [
+                "SyncReplication"
+              ]
+            },
             "UpdateActiveDirectory": {
               "methods": [
                 "UpdateActiveDirectory"
@@ -293,6 +303,11 @@
             "UpdateVolume": {
               "methods": [
                 "UpdateVolume"
+              ]
+            },
+            "ValidateDirectoryService": {
+              "methods": [
+                "ValidateDirectoryService"
               ]
             },
             "VerifyKmsConfig": {
@@ -410,6 +425,11 @@
                 "EncryptVolumes"
               ]
             },
+            "EstablishPeering": {
+              "methods": [
+                "EstablishPeering"
+              ]
+            },
             "GetActiveDirectory": {
               "methods": [
                 "GetActiveDirectory"
@@ -545,6 +565,11 @@
                 "SwitchActiveReplicaZone"
               ]
             },
+            "SyncReplication": {
+              "methods": [
+                "SyncReplication"
+              ]
+            },
             "UpdateActiveDirectory": {
               "methods": [
                 "UpdateActiveDirectory"
@@ -588,6 +613,11 @@
             "UpdateVolume": {
               "methods": [
                 "UpdateVolume"
+              ]
+            },
+            "ValidateDirectoryService": {
+              "methods": [
+                "ValidateDirectoryService"
               ]
             },
             "VerifyKmsConfig": {
