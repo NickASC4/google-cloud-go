@@ -1035,7 +1035,9 @@ func (c *Client) prepareTransaction(ctx context.Context, options TransactionOpti
 	t.txReadOnly.ro = c.ro
 	t.txReadOnly.disableRouteToLeader = c.disableRouteToLeader
 	t.txOpts = c.txo.merge(options)
-	if err := t.begin(ctx); err != nil {
+	// A mutation should only be included in the BeginTransaction RPC
+	// when using multiplexed sessions.
+	if err := t.begin(ctx /*mutation=*/, nil); err != nil {
 		sh.recycle()
 		return nil, err
 	}

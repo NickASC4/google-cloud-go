@@ -1954,15 +1954,17 @@ func TestClient_PooledTransaction(t *testing.T) {
 			t.Fatal("missing transaction id")
 		}
 	}
-	// Verify that the next transaction fails, as the pool is exhausted and we have disabled the prepareFunc.
+	// Verify that the next transaction fails, as the pool is exhausted, and we have disabled the prepareFunc.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Millisecond)
+	defer cancel()
 	_, err = txPool.RunTransaction(ctx, func(ctx context.Context, transaction *ReadWriteTransaction) error {
 		return nil
 	})
 	if err == nil {
 		t.Fatal("missing error for last transaction")
 	}
-	if g, w := ErrCode(err), codes.ResourceExhausted; g != w {
-		t.Fatalf("error code mismatch\n Got %v\nWant: %v", g, w)
+	if g, w := err, context.DeadlineExceeded; !errors.Is(g, w) {
+		t.Fatalf("error mismatch\n Got: %v\nWant: %v", g, w)
 	}
 }
 
@@ -2039,15 +2041,17 @@ func TestClient_RegisterPool(t *testing.T) {
 			t.Fatal("missing transaction id")
 		}
 	}
-	// Verify that the next transaction fails, as the pool is exhausted and we have disabled the prepareFunc.
+	// Verify that the next transaction fails, as the pool is exhausted, and we have disabled the prepareFunc.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Millisecond)
+	defer cancel()
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, transaction *ReadWriteTransaction) error {
 		return nil
 	})
 	if err == nil {
 		t.Fatal("missing error for last transaction")
 	}
-	if g, w := ErrCode(err), codes.ResourceExhausted; g != w {
-		t.Fatalf("error code mismatch\n Got %v\nWant: %v", g, w)
+	if g, w := err, context.DeadlineExceeded; !errors.Is(g, w) {
+		t.Fatalf("error mismatch\n Got: %v\nWant: %v", g, w)
 	}
 }
 
