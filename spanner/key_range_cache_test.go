@@ -44,6 +44,9 @@ func newTestEndpointCache() *testEndpointCache {
 	return &testEndpointCache{endpoints: make(map[string]*testEndpoint)}
 }
 
+func (c *testEndpointCache) ClientFor(_ channelEndpoint) spannerClient { return nil }
+func (c *testEndpointCache) Close() error                              { return nil }
+
 func (c *testEndpointCache) Get(address string) channelEndpoint {
 	if endpoint, ok := c.endpoints[address]; ok {
 		return endpoint

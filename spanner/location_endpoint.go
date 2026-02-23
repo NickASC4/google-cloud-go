@@ -27,6 +27,8 @@ type channelEndpoint interface {
 // channelEndpointCache caches endpoints by server address.
 type channelEndpointCache interface {
 	Get(address string) channelEndpoint
+	ClientFor(ep channelEndpoint) spannerClient
+	Close() error
 }
 
 type passthroughChannelEndpoint struct {
@@ -59,4 +61,12 @@ func (c *passthroughChannelEndpointCache) Get(address string) channelEndpoint {
 	endpoint := &passthroughChannelEndpoint{address: address}
 	c.endpoints[address] = endpoint
 	return endpoint
+}
+
+func (c *passthroughChannelEndpointCache) ClientFor(_ channelEndpoint) spannerClient {
+	return nil
+}
+
+func (c *passthroughChannelEndpointCache) Close() error {
+	return nil
 }

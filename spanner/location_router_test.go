@@ -42,7 +42,7 @@ func TestIsExperimentalLocationAPIEnabled(t *testing.T) {
 }
 
 func TestLocationRouter_PrepareReadRequest_FromObservedResultSetUpdate(t *testing.T) {
-	router := newLocationRouter()
+	router := newLocationRouter(nil)
 	if router == nil || router.finder == nil {
 		t.Fatal("expected newLocationRouter to initialize finder")
 	}
@@ -100,7 +100,7 @@ func TestLocationRouter_PrepareReadRequest_FromObservedResultSetUpdate(t *testin
 }
 
 func TestLocationRouter_PrepareExecuteSQLRequest_FromObservedPartialResultSetUpdate(t *testing.T) {
-	router := newLocationRouter()
+	router := newLocationRouter(nil)
 	router.observePartialResultSet(&sppb.PartialResultSet{
 		CacheUpdate: &sppb.CacheUpdate{
 			DatabaseId: 7,

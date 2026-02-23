@@ -75,6 +75,9 @@ func newFinderGoldenEndpointCache() *finderGoldenEndpointCache {
 	}
 }
 
+func (c *finderGoldenEndpointCache) ClientFor(_ channelEndpoint) spannerClient { return nil }
+func (c *finderGoldenEndpointCache) Close() error                              { return nil }
+
 func (c *finderGoldenEndpointCache) Get(address string) channelEndpoint {
 	c.mu.Lock()
 	defer c.mu.Unlock()

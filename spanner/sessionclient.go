@@ -106,6 +106,13 @@ type sessionClient struct {
 	metricsTracerFactory *builtinMetricsTracerFactory
 	channelIDMap         map[*grpc.ClientConn]uint64
 
+	// baseClientOpts holds the client options used for creating endpoint-specific
+	// gRPC connections in location-aware routing.
+	baseClientOpts []option.ClientOption
+	// endpointClientPoolSize overrides the gRPC connection pool size for
+	// endpoint-specific clients when non-zero.
+	endpointClientPoolSize int
+
 	// These fields are for request-id propagation.
 	nthClient int
 	// nthRequest shall always be incremented on every fresh request.
@@ -296,6 +303,19 @@ func (sc *sessionClient) nextClient() (spannerClient, error) {
 	}
 
 	return client, nil
+}
+
+// createEndpointClient creates a new spannerClient for a specific server endpoint
+// address. This is used by the location-aware routing feature to create direct
+// connections to Spanner servers.
+func (sc *sessionClient) createEndpointClient(ctx context.Context, address string) (spannerClient, error) {
+	opts := make([]option.ClientOption, len(sc.baseClientOpts))
+	copy(opts, sc.baseClientOpts)
+	opts = append(opts, option.WithEndpoint(address))
+	if sc.endpointClientPoolSize > 0 {
+		opts = append(opts, option.WithGRPCConnectionPool(sc.endpointClientPoolSize))
+	}
+	return newGRPCSpannerClient(ctx, sc, 0, opts...)
 }
 
 // mergeCallOptions merges two CallOptions into one and the first argument has
