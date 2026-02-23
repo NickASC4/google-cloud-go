@@ -17,7 +17,8 @@ package spanner
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"errors"
+	"io"
 	"log"
 	"os"
 	"testing"
@@ -57,7 +58,7 @@ func TestMockPartitionedUpdateWithQuery(t *testing.T) {
 	_, err := client.PartitionedUpdate(ctx, stmt)
 	wantCode := codes.InvalidArgument
 	var serr *Error
-	if !errorAs(err, &serr) {
+	if !errors.As(err, &serr) {
 		t.Errorf("got error %v, want spanner.Error", err)
 	}
 	if ErrCode(serr) != wantCode {
@@ -118,8 +119,9 @@ func TestPartitionedUpdate_WithDeadline(t *testing.T) {
 	t.Parallel()
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	server, client, teardown := setupMockedTestServerWithConfig(t, ClientConfig{
-		SessionPoolConfig: DefaultSessionPoolConfig,
-		Logger:            logger,
+		DisableNativeMetrics: true,
+		SessionPoolConfig:    DefaultSessionPoolConfig,
+		Logger:               logger,
 	})
 	defer teardown()
 
@@ -134,7 +136,7 @@ func TestPartitionedUpdate_WithDeadline(t *testing.T) {
 	// The following update will cause a 'Failed to delete session' warning to
 	// be logged. This is expected. To avoid spamming the log, we temporarily
 	// set the output to be discarded.
-	logger.SetOutput(ioutil.Discard)
+	logger.SetOutput(io.Discard)
 	_, err := client.PartitionedUpdate(ctx, stmt)
 	logger.SetOutput(os.Stderr)
 	if err == nil {
@@ -155,7 +157,7 @@ func TestPartitionedUpdate_QueryOptions(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			server, client, teardown := setupMockedTestServerWithConfig(t, ClientConfig{QueryOptions: tt.client, Compression: gzip.Name})
+			server, client, teardown := setupMockedTestServerWithConfig(t, ClientConfig{DisableNativeMetrics: true, QueryOptions: tt.client, Compression: gzip.Name})
 			defer teardown()
 
 			var err error

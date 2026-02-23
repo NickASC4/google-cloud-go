@@ -1,6 +1,135 @@
 # Changelog
 
 
+## [1.16.1](https://github.com/googleapis/google-cloud-go/compare/discoveryengine/v1.16.0...discoveryengine/v1.16.1) (2025-01-02)
+
+
+### Bug Fixes
+
+* **discoveryengine:** Update golang.org/x/net to v0.33.0 ([e9b0b69](https://github.com/googleapis/google-cloud-go/commit/e9b0b69644ea5b276cacff0a707e8a5e87efafc9))
+
+## [1.16.0](https://github.com/googleapis/google-cloud-go/compare/discoveryengine/v1.15.0...discoveryengine/v1.16.0) (2024-11-06)
+
+
+### Features
+
+* **discoveryengine:** Add AdvancedCompleteQuery API ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Add BillingEstimation in data store ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Add GroundedGenerationService API ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Add lite search API to allow public website search with API key ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Add lite search API to allow public website search with API key ([ecf1cf6](https://github.com/googleapis/google-cloud-go/commit/ecf1cf68aabe32e131bfc66b7c4575c63ad41a22))
+* **discoveryengine:** Add LOW_GROUNDED_ANSWER in answer skip reasons ([ecf1cf6](https://github.com/googleapis/google-cloud-go/commit/ecf1cf68aabe32e131bfc66b7c4575c63ad41a22))
+* **discoveryengine:** Add one_box_page_size on search ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Add Sitemap APIs to preview channel ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Support advanced boost search ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Support Google Workspace search ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Support natural language understanding search ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Support query regex in control match rules ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Support query regex in control match rules ([ecf1cf6](https://github.com/googleapis/google-cloud-go/commit/ecf1cf68aabe32e131bfc66b7c4575c63ad41a22))
+* **discoveryengine:** Support search personalization to preview channel ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+
+
+### Documentation
+
+* **discoveryengine:** Deprecate asynchronous mode in answer generation ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Deprecate extractive_answers in answer generation ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Keep the API doc up-to-date with recent changes ([f307078](https://github.com/googleapis/google-cloud-go/commit/f307078bc14758671e43ac401efb855089b27752))
+* **discoveryengine:** Keep the API doc up-to-date with recent changes ([ecf1cf6](https://github.com/googleapis/google-cloud-go/commit/ecf1cf68aabe32e131bfc66b7c4575c63ad41a22))
+
+## [1.15.0](https://github.com/googleapis/google-cloud-go/compare/discoveryengine/v1.14.0...discoveryengine/v1.15.0) (2024-10-23)
+
+
+### Features
+
+* **discoveryengine:** Add BillingEstimation in data store ([f0b05e2](https://github.com/googleapis/google-cloud-go/commit/f0b05e260435d5e8889b9a0ca0ab215fcde169ab))
+* **discoveryengine:** Add GroundedGenerationService API ([f0b05e2](https://github.com/googleapis/google-cloud-go/commit/f0b05e260435d5e8889b9a0ca0ab215fcde169ab))
+* **discoveryengine:** Add one_box_page_size on search ([f0b05e2](https://github.com/googleapis/google-cloud-go/commit/f0b05e260435d5e8889b9a0ca0ab215fcde169ab))
+* **discoveryengine:** Add site_credential for site search config ([f0b05e2](https://github.com/googleapis/google-cloud-go/commit/f0b05e260435d5e8889b9a0ca0ab215fcde169ab))
+* **discoveryengine:** Support advanced boost search ([f0b05e2](https://github.com/googleapis/google-cloud-go/commit/f0b05e260435d5e8889b9a0ca0ab215fcde169ab))
+* **discoveryengine:** Support Google Workspace search ([f0b05e2](https://github.com/googleapis/google-cloud-go/commit/f0b05e260435d5e8889b9a0ca0ab215fcde169ab))
+
+
+### Bug Fixes
+
+* **discoveryengine:** Fix the location type annotation ([f0b05e2](https://github.com/googleapis/google-cloud-go/commit/f0b05e260435d5e8889b9a0ca0ab215fcde169ab))
+* **discoveryengine:** Update google.golang.org/api to v0.203.0 ([8bb87d5](https://github.com/googleapis/google-cloud-go/commit/8bb87d56af1cba736e0fe243979723e747e5e11e))
+* **discoveryengine:** WARNING: On approximately Dec 1, 2024, an update to Protobuf will change service registration function signatures to use an interface instead of a concrete type in generated .pb.go files. This change is expected to affect very few if any users of this client library. For more information, see https://togithub.com/googleapis/google-cloud-go/issues/11020. ([8bb87d5](https://github.com/googleapis/google-cloud-go/commit/8bb87d56af1cba736e0fe243979723e747e5e11e))
+
+
+### Documentation
+
+* **discoveryengine:** Update documentation ([f0b05e2](https://github.com/googleapis/google-cloud-go/commit/f0b05e260435d5e8889b9a0ca0ab215fcde169ab))
+
+## [1.14.0](https://github.com/googleapis/google-cloud-go/compare/discoveryengine/v1.13.0...discoveryengine/v1.14.0) (2024-09-12)
+
+
+### Features
+
+* **discoveryengine:** Allow set relevance threshold on search ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Promot user event purge to v1 ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Promote search tuning service to v1 ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return index status in document ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return index status in document ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return index status in document ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return joined status in user event ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return joined status in user event ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return joined status in user event ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return query segment in NL query understanding ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return structured document info in answers ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Return structured document info in answers ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Support batch documents purge with GCS input ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Support batch documents purge with GCS input ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Support batch get documents metadata by uri patterns ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Support batch get documents metadata by uri patterns ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Support batch get documents metadata by uri patterns ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Support creating workspace search data stores ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Support natural language understanding in search ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Support one box search ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+
+
+### Bug Fixes
+
+* **discoveryengine:** Bump dependencies ([2ddeb15](https://github.com/googleapis/google-cloud-go/commit/2ddeb1544a53188a7592046b98913982f1b0cf04))
+
+
+### Documentation
+
+* **discoveryengine:** Keep the API doc up-to-date with recent changes ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Keep the API doc up-to-date with recent changes ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+* **discoveryengine:** Keep the API doc up-to-date with recent changes ([2710d0f](https://github.com/googleapis/google-cloud-go/commit/2710d0f8c66c17f1ddb1d4cc287f7aeb701c0f72))
+
+## [1.13.0](https://github.com/googleapis/google-cloud-go/compare/discoveryengine/v1.12.0...discoveryengine/v1.13.0) (2024-08-20)
+
+
+### Features
+
+* **discoveryengine:** Add support for Go 1.23 iterators ([84461c0](https://github.com/googleapis/google-cloud-go/commit/84461c0ba464ec2f951987ba60030e37c8a8fc18))
+
+## [1.12.0](https://github.com/googleapis/google-cloud-go/compare/discoveryengine/v1.11.0...discoveryengine/v1.12.0) (2024-08-08)
+
+
+### Features
+
+* **discoveryengine:** Add requirement service ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+* **discoveryengine:** Allow providing language info in data stores ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+* **discoveryengine:** Allow set relevance threshold on search ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+* **discoveryengine:** Populate more metadata in answer services ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+* **discoveryengine:** Support add metadata for website uris ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+* **discoveryengine:** Support import and purge autocomplete data ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+* **discoveryengine:** Support import data from AlloyDB ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+* **discoveryengine:** Support natural language understanding in search ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+* **discoveryengine:** Support search as you type feature ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+
+
+### Bug Fixes
+
+* **discoveryengine:** Update google.golang.org/api to v0.191.0 ([5b32644](https://github.com/googleapis/google-cloud-go/commit/5b32644eb82eb6bd6021f80b4fad471c60fb9d73))
+
+
+### Documentation
+
+* **discoveryengine:** Keep the API doc up-to-date with recent changes ([649c075](https://github.com/googleapis/google-cloud-go/commit/649c075d5310e2fac64a0b65ec445e7caef42cb0))
+
 ## [1.11.0](https://github.com/googleapis/google-cloud-go/compare/discoveryengine/v1.10.0...discoveryengine/v1.11.0) (2024-08-01)
 
 

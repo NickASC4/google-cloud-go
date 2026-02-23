@@ -18,6 +18,7 @@ package bigtable // import "cloud.google.com/go/bigtable"
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -31,6 +32,7 @@ import (
 	btopt "cloud.google.com/go/bigtable/internal/option"
 	"cloud.google.com/go/internal/trace"
 	gax "github.com/googleapis/gax-go/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
@@ -49,6 +51,9 @@ import (
 
 const prodAddr = "bigtable.googleapis.com:443"
 const mtlsProdAddr = "bigtable.mtls.googleapis.com:443"
+const featureFlagsHeaderKey = "bigtable-features"
+
+var errNegativeRowLimit = errors.New("bigtable: row limit cannot be negative")
 
 // Client is a client for reading and writing data to tables in an instance.
 //
@@ -93,6 +98,18 @@ func NewClient(ctx context.Context, project, instance string, opts ...option.Cli
 
 // NewClientWithConfig creates a new client with the given config.
 func NewClientWithConfig(ctx context.Context, project, instance string, config ClientConfig, opts ...option.ClientOption) (*Client, error) {
+	metricsProvider := config.MetricsProvider
+	if emulatorAddr := os.Getenv("BIGTABLE_EMULATOR_HOST"); emulatorAddr != "" {
+		// Do not emit metrics when emulator is being used
+		metricsProvider = NoopMetricsProvider{}
+	}
+
+	// Create a OpenTelemetry metrics configuration
+	metricsTracerFactory, err := newBuiltinMetricsTracerFactory(ctx, project, instance, config.AppProfile, metricsProvider, opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	o, err := btopt.DefaultClientOptions(prodAddr, mtlsProdAddr, Scope, clientUserAgent)
 	if err != nil {
 		return nil, err
@@ -110,19 +127,23 @@ func NewClientWithConfig(ctx context.Context, project, instance string, config C
 	// Allow non-default service account in DirectPath.
 	o = append(o, internaloption.AllowNonDefaultServiceAccount(true))
 	o = append(o, opts...)
+
+	// TODO(b/372244283): Remove after b/358175516 has been fixed
+	asyncRefreshMetricAttrs := metricsTracerFactory.clientAttributes
+	asyncRefreshMetricAttrs = append(asyncRefreshMetricAttrs,
+		attribute.String(metricLabelKeyTag, "async_refresh_dry_run"),
+		// Table, cluster and zone are unknown at this point
+		// Use default values
+		attribute.String(monitoredResLabelKeyTable, defaultTable),
+		attribute.String(monitoredResLabelKeyCluster, defaultCluster),
+		attribute.String(monitoredResLabelKeyZone, defaultZone),
+	)
+	o = append(o, internaloption.EnableAsyncRefreshDryRun(func() {
+		metricsTracerFactory.debugTags.Add(context.Background(), 1,
+			metric.WithAttributes(asyncRefreshMetricAttrs...))
+	}))
+
 	connPool, err := gtransport.DialPool(ctx, o...)
-	if err != nil {
-		return nil, fmt.Errorf("dialing: %w", err)
-	}
-
-	metricsProvider := config.MetricsProvider
-	if emulatorAddr := os.Getenv("BIGTABLE_EMULATOR_HOST"); emulatorAddr != "" {
-		// Do not emit metrics when emulator is being used
-		metricsProvider = NoopMetricsProvider{}
-	}
-
-	// Create a OpenTelemetry metrics configuration
-	metricsTracerFactory, err := newBuiltinMetricsTracerFactory(ctx, project, instance, config.AppProfile, metricsProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -266,6 +287,25 @@ type Table struct {
 	authorizedView string
 }
 
+// newFeatureFlags creates the feature flags `bigtable-features` header
+// to be sent on each request. This includes all features supported and
+// and enabled on the client
+func (c *Client) newFeatureFlags() metadata.MD {
+	ff := btpb.FeatureFlags{
+		ReverseScans:             true,
+		LastScannedRowResponses:  true,
+		ClientSideMetricsEnabled: c.metricsTracerFactory.enabled,
+	}
+
+	val := ""
+	b, err := proto.Marshal(&ff)
+	if err == nil {
+		val = base64.URLEncoding.EncodeToString(b)
+	}
+
+	return metadata.Pairs(featureFlagsHeaderKey, val)
+}
+
 // Open opens a table.
 func (c *Client) Open(table string) *Table {
 	return &Table{
@@ -274,7 +314,7 @@ func (c *Client) Open(table string) *Table {
 		md: metadata.Join(metadata.Pairs(
 			resourcePrefixHeader, c.fullTableName(table),
 			requestParamsHeader, c.requestParamsHeaderValue(table),
-		), btopt.WithFeatureFlags()),
+		), c.newFeatureFlags()),
 	}
 }
 
@@ -286,7 +326,7 @@ func (c *Client) OpenTable(table string) TableAPI {
 		md: metadata.Join(metadata.Pairs(
 			resourcePrefixHeader, c.fullTableName(table),
 			requestParamsHeader, c.requestParamsHeaderValue(table),
-		), btopt.WithFeatureFlags()),
+		), c.newFeatureFlags()),
 	}}
 }
 
@@ -298,7 +338,7 @@ func (c *Client) OpenAuthorizedView(table, authorizedView string) TableAPI {
 		md: metadata.Join(metadata.Pairs(
 			resourcePrefixHeader, c.fullAuthorizedViewName(table, authorizedView),
 			requestParamsHeader, c.requestParamsHeaderValue(table),
-		), btopt.WithFeatureFlags()),
+		), c.newFeatureFlags()),
 		authorizedView: authorizedView,
 	}}
 }
@@ -353,7 +393,25 @@ func (t *Table) ReadRows(ctx context.Context, arg RowSet, f func(Row) bool, opts
 func (t *Table) readRows(ctx context.Context, arg RowSet, f func(Row) bool, mt *builtinMetricsTracer, opts ...ReadOption) (err error) {
 	var prevRowKey string
 	attrMap := make(map[string]interface{})
+
+	numRowsRead := int64(0)
+	rowLimitSet := false
+	intialRowLimit := int64(0)
+	for _, opt := range opts {
+		if l, ok := opt.(limitRows); ok {
+			rowLimitSet = true
+			intialRowLimit = l.limit
+		}
+	}
+	if intialRowLimit < 0 {
+		return errNegativeRowLimit
+	}
+
 	err = gaxInvokeWithRecorder(ctx, mt, "ReadRows", func(ctx context.Context, headerMD, trailerMD *metadata.MD, _ gax.CallSettings) error {
+		if rowLimitSet && numRowsRead >= intialRowLimit {
+			return nil
+		}
+
 		req := &btpb.ReadRowsRequest{
 			AppProfileId: t.c.appProfile,
 		}
@@ -372,7 +430,7 @@ func (t *Table) readRows(ctx context.Context, arg RowSet, f func(Row) bool, mt *
 			}
 			req.Rows = arg.proto()
 		}
-		settings := makeReadSettings(req)
+		settings := makeReadSettings(req, numRowsRead)
 		for _, opt := range opts {
 			opt.set(&settings)
 		}
@@ -395,8 +453,10 @@ func (t *Table) readRows(ctx context.Context, arg RowSet, f func(Row) bool, mt *
 		// Ignore error since header is only being used to record builtin metrics
 		// Failure to record metrics should not fail the operation
 		*headerMD, _ = stream.Header()
+		res := new(btpb.ReadRowsResponse)
 		for {
-			res, err := stream.Recv()
+			proto.Reset(res)
+			err := stream.RecvMsg(res)
 			if err == io.EOF {
 				*trailerMD = stream.Trailer()
 				break
@@ -433,11 +493,14 @@ func (t *Table) readRows(ctx context.Context, arg RowSet, f func(Row) bool, mt *
 					continue
 				}
 				prevRowKey = row.Key()
-				if !f(row) {
+				continueReading := f(row)
+				numRowsRead++
+				if !continueReading {
 					// Cancel and drain stream.
 					cancel()
 					for {
-						if _, err := stream.Recv(); err != nil {
+						proto.Reset(res)
+						if err := stream.RecvMsg(res); err != nil {
 							*trailerMD = stream.Trailer()
 							// The stream has ended. We don't return an error
 							// because the caller has intentionally interrupted the scan.
@@ -898,14 +961,16 @@ type FullReadStatsFunc func(*FullReadStats)
 type readSettings struct {
 	req               *btpb.ReadRowsRequest
 	fullReadStatsFunc FullReadStatsFunc
+	numRowsRead       int64
 }
 
-func makeReadSettings(req *btpb.ReadRowsRequest) readSettings {
-	return readSettings{req, nil}
+func makeReadSettings(req *btpb.ReadRowsRequest, numRowsRead int64) readSettings {
+	return readSettings{req, nil, numRowsRead}
 }
 
 // A ReadOption is an optional argument to ReadRows.
 type ReadOption interface {
+	// set modifies the request stored in the settings
 	set(settings *readSettings)
 }
 
@@ -924,7 +989,11 @@ func LimitRows(limit int64) ReadOption { return limitRows{limit} }
 
 type limitRows struct{ limit int64 }
 
-func (lr limitRows) set(settings *readSettings) { settings.req.RowsLimit = lr.limit }
+func (lr limitRows) set(settings *readSettings) {
+	// Since 'numRowsRead' out of 'limit' requested rows have already been read,
+	// the subsequest requests should fetch only the remaining rows.
+	settings.req.RowsLimit = lr.limit - settings.numRowsRead
+}
 
 // WithFullReadStats returns a ReadOption that will request FullReadStats
 // and invoke the given callback on the resulting FullReadStats.
@@ -972,7 +1041,8 @@ func mutationsAreRetryable(muts []*btpb.Mutation) bool {
 	return true
 }
 
-const maxMutations = 100000
+// Overridden in tests
+var maxMutations = 100000
 
 // Apply mutates a row atomically. A mutation must contain at least one
 // operation and at most 100000 operations.
@@ -997,7 +1067,7 @@ func (t *Table) apply(ctx context.Context, mt *builtinMetricsTracer, row string,
 	}
 
 	var callOptions []gax.CallOption
-	if m.cond == nil {
+	if !m.isConditional {
 		req := &btpb.MutateRowRequest{
 			AppProfileId: t.c.appProfile,
 			RowKey:       []byte(row),
@@ -1024,9 +1094,11 @@ func (t *Table) apply(ctx context.Context, mt *builtinMetricsTracer, row string,
 	}
 
 	req := &btpb.CheckAndMutateRowRequest{
-		AppProfileId:    t.c.appProfile,
-		RowKey:          []byte(row),
-		PredicateFilter: m.cond.proto(),
+		AppProfileId: t.c.appProfile,
+		RowKey:       []byte(row),
+	}
+	if m.cond != nil {
+		req.PredicateFilter = m.cond.proto()
 	}
 	if t.authorizedView == "" {
 		req.TableName = t.c.fullTableName(t.table)
@@ -1045,15 +1117,12 @@ func (t *Table) apply(ctx context.Context, mt *builtinMetricsTracer, row string,
 		}
 		req.FalseMutations = m.mfalse.ops
 	}
-	if mutationsAreRetryable(req.TrueMutations) && mutationsAreRetryable(req.FalseMutations) {
-		callOptions = retryOptions
-	}
 	var cmRes *btpb.CheckAndMutateRowResponse
 	err = gaxInvokeWithRecorder(ctx, mt, "CheckAndMutateRow", func(ctx context.Context, headerMD, trailerMD *metadata.MD, _ gax.CallSettings) error {
 		var err error
 		cmRes, err = t.c.client.CheckAndMutateRow(ctx, req, grpc.Header(headerMD), grpc.Trailer(trailerMD))
 		return err
-	}, callOptions...)
+	})
 	if err == nil {
 		after(cmRes)
 	}
@@ -1081,10 +1150,10 @@ func GetCondMutationResult(matched *bool) ApplyOption {
 
 // Mutation represents a set of changes for a single row of a table.
 type Mutation struct {
-	ops []*btpb.Mutation
-
+	ops  []*btpb.Mutation
+	cond Filter
 	// for conditional mutations
-	cond          Filter
+	isConditional bool
 	mtrue, mfalse *Mutation
 }
 
@@ -1102,7 +1171,7 @@ func NewMutation() *Mutation {
 // The application of a ReadModifyWrite is atomic; concurrent ReadModifyWrites will
 // be executed serially by the server.
 func NewCondMutation(cond Filter, mtrue, mfalse *Mutation) *Mutation {
-	return &Mutation{cond: cond, mtrue: mtrue, mfalse: mfalse}
+	return &Mutation{cond: cond, mtrue: mtrue, mfalse: mfalse, isConditional: true}
 }
 
 // Set sets a value in a specified column, with the given timestamp.
@@ -1186,9 +1255,14 @@ func (m *Mutation) mergeToCell(family, column string, ts Timestamp, value *btpb.
 type entryErr struct {
 	Entry *btpb.MutateRowsRequest_Entry
 	Err   error
+
+	// TopLevelErr is the error received either from
+	// 1. client.MutateRows
+	// 2. stream.Recv
+	TopLevelErr error
 }
 
-// ApplyBulk applies multiple Mutations, up to a maximum of 100,000.
+// ApplyBulk applies multiple Mutations.
 // Each mutation is individually applied atomically,
 // but the set of mutations may be applied in any order.
 //
@@ -1210,23 +1284,37 @@ func (t *Table) ApplyBulk(ctx context.Context, rowKeys []string, muts []*Mutatio
 	origEntries := make([]*entryErr, len(rowKeys))
 	for i, key := range rowKeys {
 		mut := muts[i]
-		if mut.cond != nil {
+		if mut.isConditional {
 			return nil, errors.New("conditional mutations cannot be applied in bulk")
 		}
 		origEntries[i] = &entryErr{Entry: &btpb.MutateRowsRequest_Entry{RowKey: []byte(key), Mutations: mut.ops}}
 	}
 
-	for _, group := range groupEntries(origEntries, maxMutations) {
+	var firstGroupErr error
+	numFailed := 0
+	groups := groupEntries(origEntries, maxMutations)
+	for _, group := range groups {
 		err := t.applyGroup(ctx, group, opts...)
 		if err != nil {
-			return nil, err
+			if firstGroupErr == nil {
+				firstGroupErr = err
+			}
+			numFailed++
 		}
+	}
+
+	if numFailed == len(groups) {
+		return nil, firstGroupErr
 	}
 
 	// All the errors are accumulated into an array and returned, interspersed with nils for successful
 	// entries. The absence of any errors means we should return nil.
 	var foundErr bool
 	for _, entry := range origEntries {
+		if entry.Err == nil && entry.TopLevelErr != nil {
+			// Populate per mutation error if top level error is not nil
+			entry.Err = entry.TopLevelErr
+		}
 		if entry.Err != nil {
 			foundErr = true
 		}
@@ -1251,6 +1339,7 @@ func (t *Table) applyGroup(ctx context.Context, group []*entryErr, opts ...Apply
 			// We want to retry the entire request with the current group
 			return err
 		}
+		// Get the entries that need to be retried
 		group = t.getApplyBulkRetries(group)
 		if len(group) > 0 && len(idempotentRetryCodes) > 0 {
 			// We have at least one mutation that needs to be retried.
@@ -1286,6 +1375,11 @@ func (t *Table) doApplyBulk(ctx context.Context, entryErrs []*entryErr, headerMD
 		}
 	}
 
+	var topLevelErr error
+	defer func() {
+		populateTopLevelError(entryErrs, topLevelErr)
+	}()
+
 	entries := make([]*btpb.MutateRowsRequest_Entry, len(entryErrs))
 	for i, entryErr := range entryErrs {
 		entries[i] = entryErr.Entry
@@ -1302,6 +1396,7 @@ func (t *Table) doApplyBulk(ctx context.Context, entryErrs []*entryErr, headerMD
 
 	stream, err := t.c.client.MutateRows(ctx, req)
 	if err != nil {
+		_, topLevelErr = convertToGrpcStatusErr(err)
 		return err
 	}
 
@@ -1316,20 +1411,27 @@ func (t *Table) doApplyBulk(ctx context.Context, entryErrs []*entryErr, headerMD
 		}
 		if err != nil {
 			*trailerMD = stream.Trailer()
+			_, topLevelErr = convertToGrpcStatusErr(err)
 			return err
 		}
 
-		for i, entry := range res.Entries {
+		for _, entry := range res.Entries {
 			s := entry.Status
 			if s.Code == int32(codes.OK) {
-				entryErrs[i].Err = nil
+				entryErrs[entry.Index].Err = nil
 			} else {
-				entryErrs[i].Err = status.Errorf(codes.Code(s.Code), s.Message)
+				entryErrs[entry.Index].Err = status.Errorf(codes.Code(s.Code), s.Message)
 			}
 		}
 		after(res)
 	}
 	return nil
+}
+
+func populateTopLevelError(entries []*entryErr, topLevelErr error) {
+	for _, entry := range entries {
+		entry.TopLevelErr = topLevelErr
+	}
 }
 
 // groupEntries groups entries into groups of a specified size without breaking up
@@ -1562,40 +1664,48 @@ func recordOperationCompletion(mt *builtinMetricsTracer) {
 // - then, calls gax.Invoke with 'callWrapper' as an argument
 func gaxInvokeWithRecorder(ctx context.Context, mt *builtinMetricsTracer, method string,
 	f func(ctx context.Context, headerMD, trailerMD *metadata.MD, _ gax.CallSettings) error, opts ...gax.CallOption) error {
+	attemptHeaderMD := metadata.New(nil)
+	attempTrailerMD := metadata.New(nil)
+	mt.setMethod(method)
 
-	mt.method = method
-	callWrapper := func(ctx context.Context, callSettings gax.CallSettings) error {
-		// Increment number of attempts
-		mt.currOp.incrementAttemptCount()
+	var callWrapper func(context.Context, gax.CallSettings) error
+	if !mt.builtInEnabled {
+		callWrapper = func(ctx context.Context, callSettings gax.CallSettings) error {
+			// f makes calls to CBT service
+			return f(ctx, &attemptHeaderMD, &attempTrailerMD, callSettings)
+		}
+	} else {
+		callWrapper = func(ctx context.Context, callSettings gax.CallSettings) error {
+			// Increment number of attempts
+			mt.currOp.incrementAttemptCount()
 
-		attemptHeaderMD := metadata.New(nil)
-		attempTrailerMD := metadata.New(nil)
-		mt.currOp.currAttempt = attemptTracer{}
+			mt.currOp.currAttempt = attemptTracer{}
 
-		// record start time
-		mt.currOp.currAttempt.setStartTime(time.Now())
+			// record start time
+			mt.currOp.currAttempt.setStartTime(time.Now())
 
-		// f makes calls to CBT service
-		err := f(ctx, &attemptHeaderMD, &attempTrailerMD, callSettings)
+			// f makes calls to CBT service
+			err := f(ctx, &attemptHeaderMD, &attempTrailerMD, callSettings)
 
-		// Set attempt status
-		statusCode, _ := convertToGrpcStatusErr(err)
-		mt.currOp.currAttempt.setStatus(statusCode.String())
+			// Set attempt status
+			statusCode, _ := convertToGrpcStatusErr(err)
+			mt.currOp.currAttempt.setStatus(statusCode.String())
 
-		// Get location attributes from metadata and set it in tracer
-		// Ignore get location error since the metric can still be recorded with rest of the attributes
-		clusterID, zoneID, _ := extractLocation(attemptHeaderMD, attempTrailerMD)
-		mt.currOp.currAttempt.setClusterID(clusterID)
-		mt.currOp.currAttempt.setZoneID(zoneID)
+			// Get location attributes from metadata and set it in tracer
+			// Ignore get location error since the metric can still be recorded with rest of the attributes
+			clusterID, zoneID, _ := extractLocation(attemptHeaderMD, attempTrailerMD)
+			mt.currOp.currAttempt.setClusterID(clusterID)
+			mt.currOp.currAttempt.setZoneID(zoneID)
 
-		// Set server latency in tracer
-		serverLatency, serverLatencyErr := extractServerLatency(attemptHeaderMD, attempTrailerMD)
-		mt.currOp.currAttempt.setServerLatencyErr(serverLatencyErr)
-		mt.currOp.currAttempt.setServerLatency(serverLatency)
+			// Set server latency in tracer
+			serverLatency, serverLatencyErr := extractServerLatency(attemptHeaderMD, attempTrailerMD)
+			mt.currOp.currAttempt.setServerLatencyErr(serverLatencyErr)
+			mt.currOp.currAttempt.setServerLatency(serverLatency)
 
-		// Record attempt specific metrics
-		recordAttemptCompletion(mt)
-		return err
+			// Record attempt specific metrics
+			recordAttemptCompletion(mt)
+			return err
+		}
 	}
 	return gax.Invoke(ctx, callWrapper, opts...)
 }

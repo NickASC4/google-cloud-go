@@ -1,5 +1,84 @@
 # Changelog
 
+## [0.9.2](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.9.1...parallelstore/v0.9.2) (2025-01-08)
+
+
+### Documentation
+
+* **parallelstore:** Fix links in documentation ([2e4feb9](https://github.com/googleapis/google-cloud-go/commit/2e4feb938ce9ab023c8aa6bd1dbdf36fe589213a))
+
+## [0.9.1](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.9.0...parallelstore/v0.9.1) (2025-01-02)
+
+
+### Bug Fixes
+
+* **parallelstore:** Update golang.org/x/net to v0.33.0 ([e9b0b69](https://github.com/googleapis/google-cloud-go/commit/e9b0b69644ea5b276cacff0a707e8a5e87efafc9))
+
+
+### Documentation
+
+* **parallelstore:** A comment for field `requested_cancellation` in message `.google.cloud.parallelstore.v1beta.ExportDataMetadata` is changed ([e2796a8](https://github.com/googleapis/google-cloud-go/commit/e2796a8c1460211fc2f4e78f37e15e8e2b6e8179))
+* **parallelstore:** A comment for field `requested_cancellation` in message `.google.cloud.parallelstore.v1beta.ImportDataMetadata` is changed ([e2796a8](https://github.com/googleapis/google-cloud-go/commit/e2796a8c1460211fc2f4e78f37e15e8e2b6e8179))
+* **parallelstore:** A comment for field `requested_cancellation` in message `.google.cloud.parallelstore.v1beta.OperationMetadata` is changed ([e2796a8](https://github.com/googleapis/google-cloud-go/commit/e2796a8c1460211fc2f4e78f37e15e8e2b6e8179))
+
+## [0.9.0](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.8.0...parallelstore/v0.9.0) (2024-12-11)
+
+
+### Features
+
+* **parallelstore:** A new enum `DeploymentType` is added ([57fdec7](https://github.com/googleapis/google-cloud-go/commit/57fdec7ce3792753c419298b9e526c4889f4101d))
+* **parallelstore:** A new field `deployment_type` is added to message `.google.cloud.parallelstore.v1beta.Instance` ([57fdec7](https://github.com/googleapis/google-cloud-go/commit/57fdec7ce3792753c419298b9e526c4889f4101d))
+
+## [0.8.0](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.7.1...parallelstore/v0.8.0) (2024-11-06)
+
+
+### Features
+
+* **parallelstore:** New client(s) ([#11055](https://github.com/googleapis/google-cloud-go/issues/11055)) ([93d3f92](https://github.com/googleapis/google-cloud-go/commit/93d3f928afa6f5137b5f180dbdf6862896d43572))
+
+## [0.7.1](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.7.0...parallelstore/v0.7.1) (2024-10-23)
+
+
+### Bug Fixes
+
+* **parallelstore:** Update google.golang.org/api to v0.203.0 ([8bb87d5](https://github.com/googleapis/google-cloud-go/commit/8bb87d56af1cba736e0fe243979723e747e5e11e))
+* **parallelstore:** WARNING: On approximately Dec 1, 2024, an update to Protobuf will change service registration function signatures to use an interface instead of a concrete type in generated .pb.go files. This change is expected to affect very few if any users of this client library. For more information, see https://togithub.com/googleapis/google-cloud-go/issues/11020. ([8bb87d5](https://github.com/googleapis/google-cloud-go/commit/8bb87d56af1cba736e0fe243979723e747e5e11e))
+
+## [0.7.0](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.6.1...parallelstore/v0.7.0) (2024-10-09)
+
+
+### Features
+
+* **parallelstore:** Add UPGRADING state to Parallelstore state ([78d8513](https://github.com/googleapis/google-cloud-go/commit/78d8513f7e31c6ef118bdfc784049b8c7f1e3249))
+
+
+### Documentation
+
+* **parallelstore:** Cleanup of Parallelstore API descriptions ([78d8513](https://github.com/googleapis/google-cloud-go/commit/78d8513f7e31c6ef118bdfc784049b8c7f1e3249))
+* **parallelstore:** Minor documentation formatting fix for Parallelstore ([78d8513](https://github.com/googleapis/google-cloud-go/commit/78d8513f7e31c6ef118bdfc784049b8c7f1e3249))
+* **parallelstore:** Minor documentation formatting fix for Parallelstore ([78d8513](https://github.com/googleapis/google-cloud-go/commit/78d8513f7e31c6ef118bdfc784049b8c7f1e3249))
+
+## [0.6.1](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.6.0...parallelstore/v0.6.1) (2024-09-12)
+
+
+### Bug Fixes
+
+* **parallelstore:** Bump dependencies ([2ddeb15](https://github.com/googleapis/google-cloud-go/commit/2ddeb1544a53188a7592046b98913982f1b0cf04))
+
+## [0.6.0](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.5.1...parallelstore/v0.6.0) (2024-08-20)
+
+
+### Features
+
+* **parallelstore:** Add support for Go 1.23 iterators ([84461c0](https://github.com/googleapis/google-cloud-go/commit/84461c0ba464ec2f951987ba60030e37c8a8fc18))
+
+## [0.5.1](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.5.0...parallelstore/v0.5.1) (2024-08-08)
+
+
+### Bug Fixes
+
+* **parallelstore:** Update google.golang.org/api to v0.191.0 ([5b32644](https://github.com/googleapis/google-cloud-go/commit/5b32644eb82eb6bd6021f80b4fad471c60fb9d73))
+
 ## [0.5.0](https://github.com/googleapis/google-cloud-go/compare/parallelstore/v0.4.1...parallelstore/v0.5.0) (2024-08-01)
 
 

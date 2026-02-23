@@ -27,7 +27,7 @@ create a Server, and then connect to it with no security:
 
 	srv, err := spannertest.NewServer("localhost:0")
 	...
-	conn, err := grpc.DialContext(ctx, srv.Addr, grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, srv.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	...
 	client, err := spanner.NewClient(ctx, db, option.WithGRPCConn(conn))
 	...
@@ -50,6 +50,7 @@ package spannertest
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -191,7 +192,7 @@ func NewServer(laddr string) (*Server, error) {
 	s := &Server{
 		Addr: l.Addr().String(),
 		l:    l,
-		srv:  grpc.NewServer(),
+		srv:  grpc.NewServer(grpc.WaitForHandlers(true)),
 		s: &server{
 			logf: func(format string, args ...interface{}) {
 				log.Printf("spannertest.inmem: "+format, args...)
@@ -629,10 +630,10 @@ func (s *server) StreamingRead(req *spannerpb.ReadRequest, stream spannerpb.Span
 	}
 	if len(req.ResumeToken) > 0 {
 		// This should only happen if we send resume_token ourselves.
-		return fmt.Errorf("read resumption not supported")
+		return errors.New("read resumption not supported")
 	}
 	if len(req.PartitionToken) > 0 {
-		return fmt.Errorf("partition restrictions not supported")
+		return errors.New("partition restrictions not supported")
 	}
 
 	var ri rowIter
