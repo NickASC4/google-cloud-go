@@ -19,10 +19,12 @@ package spanner
 import (
 	"context"
 	"sync"
+	"time"
 
 	vkit "cloud.google.com/go/spanner/apiv1"
 	"cloud.google.com/go/spanner/apiv1/spannerpb"
 	"github.com/googleapis/gax-go/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
 )
 
@@ -72,6 +74,22 @@ func (c *locationAwareSpannerClient) affinityTrackingEndpoint(ep channelEndpoint
 		return ep
 	}
 	return c.defaultAffinityEndpoint
+}
+
+func endpointAddressOrDefault(ep channelEndpoint) string {
+	if ep == nil {
+		return "default"
+	}
+	return ep.Address()
+}
+
+func (c *locationAwareSpannerClient) traceRoutingDecision(ctx context.Context, start time.Time, source string, ep channelEndpoint, method string) {
+	larTraceEvent(ctx, "lar.routing_decision",
+		attribute.Int64("duration_us", time.Since(start).Microseconds()),
+		attribute.String("routing_source", source),
+		attribute.String("target_address", endpointAddressOrDefault(ep)),
+		attribute.String("method", method),
+	)
 }
 
 // clientForEndpoint resolves a channelEndpoint to a spannerClient, falling
@@ -151,7 +169,9 @@ func (c *locationAwareSpannerClient) BatchWrite(ctx context.Context, req *spanne
 // --- Routed RPCs ---
 
 func (c *locationAwareSpannerClient) StreamingRead(ctx context.Context, req *spannerpb.ReadRequest, opts ...gax.CallOption) (spannerpb.Spanner_StreamingReadClient, error) {
-	ep := c.router.prepareReadRequest(req)
+	routeStart := time.Now()
+	ep, source := c.router.prepareReadRequest(ctx, req)
+	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/StreamingRead")
 	client := c.clientForEndpoint(ep)
 	stream, err := client.StreamingRead(ctx, req, opts...)
 	if err != nil {
@@ -165,29 +185,40 @@ func (c *locationAwareSpannerClient) StreamingRead(ctx context.Context, req *spa
 		isReadOnlyBegin,
 		readOnlyStrong,
 		isReadWriteBeginFromSelector(req.GetTransaction()),
+		ctx,
 	), nil
 }
 
 func (c *locationAwareSpannerClient) Read(ctx context.Context, req *spannerpb.ReadRequest, opts ...gax.CallOption) (*spannerpb.ResultSet, error) {
-	ep := c.router.prepareReadRequest(req)
+	routeStart := time.Now()
+	ep, source := c.router.prepareReadRequest(ctx, req)
+	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/Read")
 	client := c.clientForEndpoint(ep)
 	resp, err := client.Read(ctx, req, opts...)
 	if err != nil {
 		return nil, err
 	}
-	c.router.observeResultSet(resp)
+	c.router.observeResultSet(ctx, resp)
 	if txMeta := resp.GetMetadata().GetTransaction(); txMeta != nil && len(txMeta.GetId()) > 0 {
 		if isReadOnlyBegin, readOnlyStrong := readOnlyBeginFromSelector(req.GetTransaction()); isReadOnlyBegin {
 			c.router.trackReadOnlyTransaction(string(txMeta.GetId()), readOnlyStrong)
+			larTraceEvent(ctx, "lar.affinity_track_readonly",
+				attribute.Bool("prefer_leader", readOnlyStrong),
+			)
 		} else if isReadWriteBeginFromSelector(req.GetTransaction()) {
 			c.router.setTransactionAffinity(string(txMeta.GetId()), c.affinityTrackingEndpoint(ep))
+			larTraceEvent(ctx, "lar.affinity_recorded",
+				attribute.String("target_address", endpointAddressOrDefault(c.affinityTrackingEndpoint(ep))),
+			)
 		}
 	}
 	return resp, nil
 }
 
 func (c *locationAwareSpannerClient) ExecuteStreamingSql(ctx context.Context, req *spannerpb.ExecuteSqlRequest, opts ...gax.CallOption) (spannerpb.Spanner_ExecuteStreamingSqlClient, error) {
-	ep := c.router.prepareExecuteSQLRequest(req)
+	routeStart := time.Now()
+	ep, source := c.router.prepareExecuteSQLRequest(ctx, req)
+	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/ExecuteStreamingSql")
 	client := c.clientForEndpoint(ep)
 	stream, err := client.ExecuteStreamingSql(ctx, req, opts...)
 	if err != nil {
@@ -201,29 +232,40 @@ func (c *locationAwareSpannerClient) ExecuteStreamingSql(ctx context.Context, re
 		isReadOnlyBegin,
 		readOnlyStrong,
 		isReadWriteBeginFromSelector(req.GetTransaction()),
+		ctx,
 	), nil
 }
 
 func (c *locationAwareSpannerClient) ExecuteSql(ctx context.Context, req *spannerpb.ExecuteSqlRequest, opts ...gax.CallOption) (*spannerpb.ResultSet, error) {
-	ep := c.router.prepareExecuteSQLRequest(req)
+	routeStart := time.Now()
+	ep, source := c.router.prepareExecuteSQLRequest(ctx, req)
+	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/ExecuteSql")
 	client := c.clientForEndpoint(ep)
 	resp, err := client.ExecuteSql(ctx, req, opts...)
 	if err != nil {
 		return nil, err
 	}
-	c.router.observeResultSet(resp)
+	c.router.observeResultSet(ctx, resp)
 	if txMeta := resp.GetMetadata().GetTransaction(); txMeta != nil && len(txMeta.GetId()) > 0 {
 		if isReadOnlyBegin, readOnlyStrong := readOnlyBeginFromSelector(req.GetTransaction()); isReadOnlyBegin {
 			c.router.trackReadOnlyTransaction(string(txMeta.GetId()), readOnlyStrong)
+			larTraceEvent(ctx, "lar.affinity_track_readonly",
+				attribute.Bool("prefer_leader", readOnlyStrong),
+			)
 		} else if isReadWriteBeginFromSelector(req.GetTransaction()) {
 			c.router.setTransactionAffinity(string(txMeta.GetId()), c.affinityTrackingEndpoint(ep))
+			larTraceEvent(ctx, "lar.affinity_recorded",
+				attribute.String("target_address", endpointAddressOrDefault(c.affinityTrackingEndpoint(ep))),
+			)
 		}
 	}
 	return resp, nil
 }
 
 func (c *locationAwareSpannerClient) BeginTransaction(ctx context.Context, req *spannerpb.BeginTransactionRequest, opts ...gax.CallOption) (*spannerpb.Transaction, error) {
-	ep := c.router.prepareBeginTransactionRequest(req)
+	routeStart := time.Now()
+	ep, source := c.router.prepareBeginTransactionRequest(ctx, req)
+	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/BeginTransaction")
 	client := c.clientForEndpoint(ep)
 	resp, err := client.BeginTransaction(ctx, req, opts...)
 	if err != nil {
@@ -232,8 +274,14 @@ func (c *locationAwareSpannerClient) BeginTransaction(ctx context.Context, req *
 	if len(resp.GetId()) > 0 {
 		if isReadOnly, readOnlyStrong := readOnlyBeginFromTransactionOptions(req.GetOptions()); isReadOnly {
 			c.router.trackReadOnlyTransaction(string(resp.GetId()), readOnlyStrong)
+			larTraceEvent(ctx, "lar.affinity_track_readonly",
+				attribute.Bool("prefer_leader", readOnlyStrong),
+			)
 		} else {
 			c.router.setTransactionAffinity(string(resp.GetId()), c.affinityTrackingEndpoint(ep))
+			larTraceEvent(ctx, "lar.affinity_recorded",
+				attribute.String("target_address", endpointAddressOrDefault(c.affinityTrackingEndpoint(ep))),
+			)
 		}
 	}
 	return resp, nil
@@ -242,16 +290,38 @@ func (c *locationAwareSpannerClient) BeginTransaction(ctx context.Context, req *
 // --- Affinity RPCs ---
 
 func (c *locationAwareSpannerClient) Commit(ctx context.Context, req *spannerpb.CommitRequest, opts ...gax.CallOption) (*spannerpb.CommitResponse, error) {
-	client := c.affinityClient(req.GetTransactionId())
+	routeStart := time.Now()
+	source := "default"
+	var txID []byte
+	if req != nil {
+		txID = req.GetTransactionId()
+	}
+	if len(txID) > 0 && c.router.getTransactionAffinity(string(txID)) != nil {
+		source = "affinity"
+	}
+	ep := c.router.getTransactionAffinity(string(txID))
+	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/Commit")
+	client := c.affinityClient(txID)
 	resp, err := client.Commit(ctx, req, opts...)
-	c.router.clearTransactionAffinity(string(req.GetTransactionId()))
+	c.router.clearTransactionAffinity(string(txID))
 	return resp, err
 }
 
 func (c *locationAwareSpannerClient) Rollback(ctx context.Context, req *spannerpb.RollbackRequest, opts ...gax.CallOption) error {
-	client := c.affinityClient(req.GetTransactionId())
+	routeStart := time.Now()
+	source := "default"
+	var txID []byte
+	if req != nil {
+		txID = req.GetTransactionId()
+	}
+	if len(txID) > 0 && c.router.getTransactionAffinity(string(txID)) != nil {
+		source = "affinity"
+	}
+	ep := c.router.getTransactionAffinity(string(txID))
+	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/Rollback")
+	client := c.affinityClient(txID)
 	err := client.Rollback(ctx, req, opts...)
-	c.router.clearTransactionAffinity(string(req.GetTransactionId()))
+	c.router.clearTransactionAffinity(string(txID))
 	return err
 }
 
@@ -265,6 +335,7 @@ type affinityTrackingStream struct {
 	trackReadOnlyBegin bool
 	readOnlyStrong     bool
 	trackAffinity      bool
+	ctx                context.Context
 	once               sync.Once
 	inner              spannerpb.Spanner_ExecuteStreamingSqlClient
 }
@@ -283,6 +354,7 @@ func newAffinityTrackingStream(
 	trackReadOnlyBegin bool,
 	readOnlyStrong bool,
 	trackAffinity bool,
+	ctx context.Context,
 ) *affinityTrackingStream {
 	return &affinityTrackingStream{
 		ClientStream:       inner,
@@ -291,6 +363,7 @@ func newAffinityTrackingStream(
 		trackReadOnlyBegin: trackReadOnlyBegin,
 		readOnlyStrong:     readOnlyStrong,
 		trackAffinity:      trackAffinity,
+		ctx:                ctx,
 		inner:              inner,
 	}
 }
@@ -307,15 +380,21 @@ func (s *affinityTrackingStream) Recv() (*spannerpb.PartialResultSet, error) {
 		s.once.Do(func() {
 			if s.trackReadOnlyBegin {
 				s.router.trackReadOnlyTransaction(txID, s.readOnlyStrong)
+				larTraceEvent(s.ctx, "lar.affinity_track_readonly",
+					attribute.Bool("prefer_leader", s.readOnlyStrong),
+				)
 				return
 			}
 			if s.trackAffinity {
 				s.router.setTransactionAffinity(txID, s.affinityEndpoint)
+				larTraceEvent(s.ctx, "lar.affinity_recorded",
+					attribute.String("target_address", endpointAddressOrDefault(s.affinityEndpoint)),
+				)
 			}
 		})
 	}
 	// Observe cache updates from every PartialResultSet.
-	s.router.observePartialResultSet(prs)
+	s.router.observePartialResultSet(s.ctx, prs)
 	return prs, nil
 }
 

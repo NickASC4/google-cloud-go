@@ -103,6 +103,7 @@ type txReadOnly struct {
 	clientContext *sppb.RequestOptions_ClientContext
 
 	otConfig *openTelemetryConfig
+
 }
 
 func (t *txReadOnly) isDefaultInlinedBegin() bool {

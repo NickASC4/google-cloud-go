@@ -30,7 +30,6 @@ import (
 )
 
 // mockSpannerClient records which RPCs were called and can return configurable
-//
 // responses. It implements spannerClient.
 type mockSpannerClient struct {
 	// Track which methods were called
@@ -714,7 +713,7 @@ func (c *mockCloseCache) ClientFor(_ channelEndpoint) spannerClient { return nil
 func (c *mockCloseCache) Close() error                              { return c.closeFn() }
 
 func seedTwoRangeRoutingCache(router *locationRouter) {
-	router.observeResultSet(&sppb.ResultSet{
+	router.observeResultSet(context.Background(), &sppb.ResultSet{
 		CacheUpdate: &sppb.CacheUpdate{
 			DatabaseId: 1,
 			Range: []*sppb.Range{

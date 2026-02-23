@@ -18,12 +18,14 @@ package spanner
 
 import (
 	"bytes"
+	"context"
 	"hash/crc32"
 	"math/rand"
 	"sort"
 	"sync"
 
 	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -39,6 +41,17 @@ const (
 	rangeModeCoveringSplit rangeMode = iota
 	rangeModePickRandom
 )
+
+func (m rangeMode) String() string {
+	switch m {
+	case rangeModeCoveringSplit:
+		return "COVERING_SPLIT"
+	case rangeModePickRandom:
+		return "PICK_RANDOM"
+	default:
+		return "UNKNOWN"
+	}
+}
 
 type keyRangeCache struct {
 	endpointCache channelEndpointCache
@@ -129,7 +142,7 @@ func (c *keyRangeCache) addRanges(cacheUpdate *sppb.CacheUpdate) {
 	}
 }
 
-func (c *keyRangeCache) fillRoutingHint(preferLeader bool, mode rangeMode, directedReadOptions *sppb.DirectedReadOptions, hint *sppb.RoutingHint) channelEndpoint {
+func (c *keyRangeCache) fillRoutingHint(ctx context.Context, preferLeader bool, mode rangeMode, directedReadOptions *sppb.DirectedReadOptions, hint *sppb.RoutingHint) channelEndpoint {
 	if hint == nil || len(hint.GetKey()) == 0 {
 		return nil
 	}
@@ -139,6 +152,7 @@ func (c *keyRangeCache) fillRoutingHint(preferLeader bool, mode rangeMode, direc
 
 	c.mu.Lock()
 	targetRange := c.findRangeLocked(hint.GetKey(), hint.GetLimitKey(), mode)
+	cacheSize := len(c.ranges)
 	c.mu.Unlock()
 	if targetRange == nil || targetRange.group == nil {
 		return nil
@@ -149,7 +163,18 @@ func (c *keyRangeCache) fillRoutingHint(preferLeader bool, mode rangeMode, direc
 	hint.Key = append(hint.Key[:0], targetRange.startKey...)
 	hint.LimitKey = append(hint.LimitKey[:0], targetRange.limitKey...)
 
-	return targetRange.group.fillRoutingHint(c.endpointCache, preferLeader, directedReadOptions, hint)
+	endpoint := targetRange.group.fillRoutingHint(ctx, c.endpointCache, preferLeader, directedReadOptions, hint)
+	selectedAddress := "none"
+	if endpoint != nil {
+		selectedAddress = endpoint.Address()
+	}
+	larTraceEvent(ctx, "lar.server_host_routing",
+		attribute.Bool("prefer_leader", preferLeader),
+		attribute.String("range_mode", mode.String()),
+		attribute.String("selected_address", selectedAddress),
+		attribute.Int64("cache_size", int64(cacheSize)),
+	)
+	return endpoint
 }
 
 func (c *keyRangeCache) clear() {
@@ -506,11 +531,14 @@ func (t *cachedTablet) shouldSkip(hint *sppb.RoutingHint) bool {
 	return false
 }
 
-func (t *cachedTablet) pick(endpointCache channelEndpointCache, hint *sppb.RoutingHint) channelEndpoint {
+func (t *cachedTablet) pick(ctx context.Context, endpointCache channelEndpointCache, hint *sppb.RoutingHint) channelEndpoint {
 	if hint != nil {
 		hint.TabletUid = t.tabletUID
 	}
 	if t.endpoint == nil && t.serverAddress != "" {
+		larTraceEvent(ctx, "lar.endpoint_cache_miss",
+			attribute.String("address", t.serverAddress),
+		)
 		t.endpoint = endpointCache.Get(t.serverAddress)
 	}
 	return t.endpoint
@@ -575,7 +603,7 @@ func (g *cachedGroup) leaderLocked() *cachedTablet {
 	return g.tablets[g.leaderIdx]
 }
 
-func (g *cachedGroup) fillRoutingHint(endpointCache channelEndpointCache, preferLeader bool, directedReadOptions *sppb.DirectedReadOptions, hint *sppb.RoutingHint) channelEndpoint {
+func (g *cachedGroup) fillRoutingHint(ctx context.Context, endpointCache channelEndpointCache, preferLeader bool, directedReadOptions *sppb.DirectedReadOptions, hint *sppb.RoutingHint) channelEndpoint {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -586,7 +614,7 @@ func (g *cachedGroup) fillRoutingHint(endpointCache channelEndpointCache, prefer
 
 	leader := g.leaderLocked()
 	if preferLeader && !hasDirectedReadOptions && leader != nil && leader.distance <= maxLocalReplicaDistance && !leader.shouldSkip(hint) {
-		return leader.pick(endpointCache, hint)
+		return leader.pick(ctx, endpointCache, hint)
 	}
 	for _, tablet := range g.tablets {
 		if !tablet.matches(directedReadOptions) {
@@ -595,7 +623,7 @@ func (g *cachedGroup) fillRoutingHint(endpointCache channelEndpointCache, prefer
 		if tablet.shouldSkip(hint) {
 			continue
 		}
-		return tablet.pick(endpointCache, hint)
+		return tablet.pick(ctx, endpointCache, hint)
 	}
 	return nil
 }

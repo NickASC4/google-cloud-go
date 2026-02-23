@@ -1,0 +1,75 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  namespace: spanner-ns
+  name: go-multi-ro-query-classic
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: go-multi-ro-query-classic
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      containers:
+        - name: multi-ro-query
+          image: us-west1-docker.pkg.dev/outbound-flight/spanner-box/irahul-go-client:latest
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "0.4"
+            limits:
+              memory: "400Mi"
+              cpu: "0.4"
+          env:
+            - name: PROBE_TYPE
+              value: "multi_use_ro_query"
+            - name: OTEL_SERVICE_NAME
+              value: "irahul-gbypass-multi-ro-classic"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  namespace: spanner-ns
+  name: go-multi-ro-query-bypass
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: go-multi-ro-query-bypass
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      containers:
+        - name: multi-ro-query
+          image: us-west1-docker.pkg.dev/outbound-flight/spanner-box/irahul-go-client:latest
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "0.4"
+            limits:
+              memory: "400Mi"
+              cpu: "0.4"
+          env:
+            - name: PROBE_TYPE
+              value: "multi_use_ro_query"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: OTEL_SERVICE_NAME
+              value: "irahul-gbypass-multi-ro-bypass"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"

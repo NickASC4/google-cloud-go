@@ -17,6 +17,7 @@ limitations under the License.
 package spanner
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -126,15 +127,15 @@ func TestChannelFinder_Golden(t *testing.T) {
 
 			switch {
 			case event.cacheUpdate != nil:
-				finder.update(event.cacheUpdate)
+				finder.update(context.Background(), event.cacheUpdate)
 			case event.read != nil:
 				req := proto.Clone(event.read).(*sppb.ReadRequest)
-				endpoint := finder.findServerReadWithTransaction(req)
+				endpoint := finder.findServerReadWithTransaction(context.Background(), req)
 				assertFinderGoldenEndpoint(t, testCase.name, eventName, event.server, endpoint)
 				assertFinderGoldenHint(t, testCase.name, eventName, event.hint, req.GetRoutingHint())
 			case event.sql != nil:
 				req := proto.Clone(event.sql).(*sppb.ExecuteSqlRequest)
-				endpoint := finder.findServerExecuteSQLWithTransaction(req)
+				endpoint := finder.findServerExecuteSQLWithTransaction(context.Background(), req)
 				assertFinderGoldenEndpoint(t, testCase.name, eventName, event.server, endpoint)
 				assertFinderGoldenHint(t, testCase.name, eventName, event.hint, req.GetRoutingHint())
 			default:

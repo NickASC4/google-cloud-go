@@ -18,6 +18,7 @@ package spanner
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
@@ -47,7 +48,7 @@ func TestLocationRouter_PrepareReadRequest_FromObservedResultSetUpdate(t *testin
 		t.Fatal("expected newLocationRouter to initialize finder")
 	}
 
-	router.observeResultSet(&sppb.ResultSet{
+	router.observeResultSet(context.Background(), &sppb.ResultSet{
 		CacheUpdate: &sppb.CacheUpdate{
 			DatabaseId: 1,
 			KeyRecipes: &sppb.RecipeList{
@@ -79,7 +80,7 @@ func TestLocationRouter_PrepareReadRequest_FromObservedResultSetUpdate(t *testin
 			},
 		},
 	}
-	router.prepareReadRequest(req)
+	_, _ = router.prepareReadRequest(context.Background(), req)
 
 	hint := req.GetRoutingHint()
 	if hint == nil {
@@ -101,7 +102,7 @@ func TestLocationRouter_PrepareReadRequest_FromObservedResultSetUpdate(t *testin
 
 func TestLocationRouter_PrepareExecuteSQLRequest_FromObservedPartialResultSetUpdate(t *testing.T) {
 	router := newLocationRouter(nil)
-	router.observePartialResultSet(&sppb.PartialResultSet{
+	router.observePartialResultSet(context.Background(), &sppb.PartialResultSet{
 		CacheUpdate: &sppb.CacheUpdate{
 			DatabaseId: 7,
 		},
@@ -115,7 +116,7 @@ func TestLocationRouter_PrepareExecuteSQLRequest_FromObservedPartialResultSetUpd
 			},
 		},
 	}
-	router.prepareExecuteSQLRequest(req)
+	_, _ = router.prepareExecuteSQLRequest(context.Background(), req)
 
 	hint := req.GetRoutingHint()
 	if hint == nil {
@@ -131,14 +132,14 @@ func TestLocationRouter_PrepareExecuteSQLRequest_FromObservedPartialResultSetUpd
 
 func TestLocationRouter_NilSafety(t *testing.T) {
 	var router *locationRouter
-	router.prepareReadRequest(nil)
-	router.prepareReadRequest(&sppb.ReadRequest{})
-	router.prepareExecuteSQLRequest(nil)
-	router.prepareExecuteSQLRequest(&sppb.ExecuteSqlRequest{})
-	router.prepareBeginTransactionRequest(nil)
-	router.prepareBeginTransactionRequest(&sppb.BeginTransactionRequest{})
-	router.observePartialResultSet(nil)
-	router.observePartialResultSet(&sppb.PartialResultSet{})
-	router.observeResultSet(nil)
-	router.observeResultSet(&sppb.ResultSet{})
+	_, _ = router.prepareReadRequest(context.Background(), nil)
+	_, _ = router.prepareReadRequest(context.Background(), &sppb.ReadRequest{})
+	_, _ = router.prepareExecuteSQLRequest(context.Background(), nil)
+	_, _ = router.prepareExecuteSQLRequest(context.Background(), &sppb.ExecuteSqlRequest{})
+	_, _ = router.prepareBeginTransactionRequest(context.Background(), nil)
+	_, _ = router.prepareBeginTransactionRequest(context.Background(), &sppb.BeginTransactionRequest{})
+	router.observePartialResultSet(context.Background(), nil)
+	router.observePartialResultSet(context.Background(), &sppb.PartialResultSet{})
+	router.observeResultSet(context.Background(), nil)
+	router.observeResultSet(context.Background(), &sppb.ResultSet{})
 }

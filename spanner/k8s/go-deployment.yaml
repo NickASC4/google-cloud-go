@@ -1,0 +1,367 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: spanner-ns
+  name: gclient-read-classic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gclient-read-classic
+  template:
+    metadata:
+      labels:
+        app: gclient-read-classic
+    spec:
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      containers:
+        - &container-template
+          name: stale-read
+          image: us-west1-docker.pkg.dev/outbound-flight/spanner-box/irahul-go-client:latest
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "0.4"
+            limits:
+              memory: "400Mi"
+              cpu: "0.4"
+          env:
+            - name: PROBE_TYPE
+              value: "stale_read"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *container-template
+          name: strong-read
+          env:
+            - name: PROBE_TYPE
+              value: "strong_read"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *container-template
+          name: stale-query
+          env:
+            - name: PROBE_TYPE
+              value: "stale_query"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *container-template
+          name: strong-query
+          env:
+            - name: PROBE_TYPE
+              value: "strong_query"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *container-template
+          name: multi-use-ro-query
+          env:
+            - name: PROBE_TYPE
+              value: "multi_use_ro_query"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: spanner-ns
+  name: gclient-write-classic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gclient-write-classic
+  template:
+    metadata:
+      labels:
+        app: gclient-write-classic
+    spec:
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      containers:
+        - &write-container-template
+          name: read-write
+          image: us-west1-docker.pkg.dev/outbound-flight/spanner-box/irahul-go-client:latest
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "0.4"
+            limits:
+              memory: "400Mi"
+              cpu: "0.4"
+          env:
+            - name: PROBE_TYPE
+              value: "read_write"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-container-template
+          name: rr-occ-dml
+          env:
+            - name: PROBE_TYPE
+              value: "rr_occ_dml"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-container-template
+          name: dml
+          env:
+            - name: PROBE_TYPE
+              value: "dml"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-container-template
+          name: blind-dml
+          env:
+            - name: PROBE_TYPE
+              value: "blind_dml"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-container-template
+          name: multi-blind-dml
+          env:
+            - name: PROBE_TYPE
+              value: "multi_blind_dml"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-container-template
+          name: write
+          env:
+            - name: PROBE_TYPE
+              value: "write"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-container-template
+          name: write-no-rp
+          env:
+            - name: PROBE_TYPE
+              value: "write_no_rp"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: spanner-ns
+  name: gclient-read-bypass
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gclient-read-bypass
+  template:
+    metadata:
+      labels:
+        app: gclient-read-bypass
+    spec:
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      containers:
+        - &read-bypass-template
+          name: stale-read
+          image: us-west1-docker.pkg.dev/outbound-flight/spanner-box/irahul-go-client:latest
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "0.4"
+            limits:
+              memory: "400Mi"
+              cpu: "0.4"
+          env:
+            - name: PROBE_TYPE
+              value: "stale_read"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *read-bypass-template
+          name: strong-read
+          env:
+            - name: PROBE_TYPE
+              value: "strong_read"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *read-bypass-template
+          name: stale-query
+          env:
+            - name: PROBE_TYPE
+              value: "stale_query"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *read-bypass-template
+          name: strong-query
+          env:
+            - name: PROBE_TYPE
+              value: "strong_query"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *read-bypass-template
+          name: multi-use-ro-query
+          env:
+            - name: PROBE_TYPE
+              value: "multi_use_ro_query"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: QPS
+              value: "10"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: spanner-ns
+  name: gclient-write-bypass
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gclient-write-bypass
+  template:
+    metadata:
+      labels:
+        app: gclient-write-bypass
+    spec:
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      containers:
+        - &write-bypass-template
+          name: read-write
+          image: us-west1-docker.pkg.dev/outbound-flight/spanner-box/irahul-go-client:latest
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "0.4"
+            limits:
+              memory: "400Mi"
+              cpu: "0.4"
+          env:
+            - name: PROBE_TYPE
+              value: "read_write"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-bypass-template
+          name: rr-occ-dml
+          env:
+            - name: PROBE_TYPE
+              value: "rr_occ_dml"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-bypass-template
+          name: dml
+          env:
+            - name: PROBE_TYPE
+              value: "dml"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-bypass-template
+          name: blind-dml
+          env:
+            - name: PROBE_TYPE
+              value: "blind_dml"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-bypass-template
+          name: multi-blind-dml
+          env:
+            - name: PROBE_TYPE
+              value: "multi_blind_dml"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-bypass-template
+          name: write
+          env:
+            - name: PROBE_TYPE
+              value: "write"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"
+        - <<: *write-bypass-template
+          name: write-no-rp
+          env:
+            - name: PROBE_TYPE
+              value: "write_no_rp"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: ENDPOINT
+              value: "10.128.2.132:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"

@@ -386,7 +386,7 @@ func TestBatchExecute_Query_PreparesRoutingHint(t *testing.T) {
 	if client.locationRouter == nil {
 		t.Fatal("expected location router to be enabled")
 	}
-	client.locationRouter.observePartialResultSet(&sppb.PartialResultSet{
+	client.locationRouter.observePartialResultSet(context.Background(), &sppb.PartialResultSet{
 		CacheUpdate: &sppb.CacheUpdate{DatabaseId: 7},
 	})
 
@@ -444,7 +444,7 @@ func TestBatchExecute_Read_PreparesRoutingHint(t *testing.T) {
 	if client.locationRouter == nil {
 		t.Fatal("expected location router to be enabled")
 	}
-	client.locationRouter.observePartialResultSet(&sppb.PartialResultSet{
+	client.locationRouter.observePartialResultSet(context.Background(), &sppb.PartialResultSet{
 		CacheUpdate: &sppb.CacheUpdate{DatabaseId: 9},
 	})
 

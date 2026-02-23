@@ -17,6 +17,7 @@ limitations under the License.
 package spanner
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"sync"
@@ -52,55 +53,75 @@ func newLocationRouter(endpointCache channelEndpointCache) *locationRouter {
 	}
 }
 
-func (r *locationRouter) prepareReadRequest(req *sppb.ReadRequest) channelEndpoint {
+func (r *locationRouter) prepareReadRequest(ctx context.Context, req *sppb.ReadRequest) (channelEndpoint, string) {
 	if r == nil || req == nil {
-		return nil
+		return nil, "default"
 	}
 	if txID := transactionIDFromSelector(req.GetTransaction()); txID != "" {
 		if preferLeader, ok := r.getReadOnlyTransactionPreferLeader(txID); ok {
-			return r.finder.findServerRead(req, preferLeader)
+			ep := r.finder.findServerRead(ctx, req, preferLeader)
+			if ep != nil {
+				return ep, "key_based"
+			}
+			return nil, "default"
 		}
 		if ep := r.getTransactionAffinity(txID); ep != nil {
-			return ep
+			return ep, "affinity"
 		}
 	}
-	return r.finder.findServerReadWithTransaction(req)
+	ep := r.finder.findServerReadWithTransaction(ctx, req)
+	if ep != nil {
+		return ep, "key_based"
+	}
+	return nil, "default"
 }
 
-func (r *locationRouter) prepareExecuteSQLRequest(req *sppb.ExecuteSqlRequest) channelEndpoint {
+func (r *locationRouter) prepareExecuteSQLRequest(ctx context.Context, req *sppb.ExecuteSqlRequest) (channelEndpoint, string) {
 	if r == nil || req == nil {
-		return nil
+		return nil, "default"
 	}
 	if txID := transactionIDFromSelector(req.GetTransaction()); txID != "" {
 		if preferLeader, ok := r.getReadOnlyTransactionPreferLeader(txID); ok {
-			return r.finder.findServerExecuteSQL(req, preferLeader)
+			ep := r.finder.findServerExecuteSQL(ctx, req, preferLeader)
+			if ep != nil {
+				return ep, "key_based"
+			}
+			return nil, "default"
 		}
 		if ep := r.getTransactionAffinity(txID); ep != nil {
-			return ep
+			return ep, "affinity"
 		}
 	}
-	return r.finder.findServerExecuteSQLWithTransaction(req)
-}
-
-func (r *locationRouter) prepareBeginTransactionRequest(req *sppb.BeginTransactionRequest) channelEndpoint {
-	if r == nil || req == nil {
-		return nil
+	ep := r.finder.findServerExecuteSQLWithTransaction(ctx, req)
+	if ep != nil {
+		return ep, "key_based"
 	}
-	return r.finder.findServerBeginTransaction(req)
+	return nil, "default"
 }
 
-func (r *locationRouter) observePartialResultSet(prs *sppb.PartialResultSet) {
+func (r *locationRouter) prepareBeginTransactionRequest(ctx context.Context, req *sppb.BeginTransactionRequest) (channelEndpoint, string) {
+	if r == nil || req == nil {
+		return nil, "default"
+	}
+	ep := r.finder.findServerBeginTransaction(ctx, req)
+	if ep != nil {
+		return ep, "key_based"
+	}
+	return nil, "default"
+}
+
+func (r *locationRouter) observePartialResultSet(ctx context.Context, prs *sppb.PartialResultSet) {
 	if r == nil || prs == nil || prs.GetCacheUpdate() == nil {
 		return
 	}
-	r.finder.update(prs.GetCacheUpdate())
+	r.finder.update(ctx, prs.GetCacheUpdate())
 }
 
-func (r *locationRouter) observeResultSet(rs *sppb.ResultSet) {
+func (r *locationRouter) observeResultSet(ctx context.Context, rs *sppb.ResultSet) {
 	if r == nil || rs == nil || rs.GetCacheUpdate() == nil {
 		return
 	}
-	r.finder.update(rs.GetCacheUpdate())
+	r.finder.update(ctx, rs.GetCacheUpdate())
 }
 
 func (r *locationRouter) setTransactionAffinity(txID string, ep channelEndpoint) {
