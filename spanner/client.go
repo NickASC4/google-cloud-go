@@ -1039,7 +1039,7 @@ func (c *Client) prepareTransaction(ctx context.Context, options TransactionOpti
 	t.txReadOnly.ro = c.ro
 	t.txReadOnly.disableRouteToLeader = c.disableRouteToLeader
 	t.txOpts = c.txo.merge(options)
-	if err := t.begin(ctx); err != nil {
+	if err := t.begin(ctx, nil); err != nil {
 		sh.recycle()
 		return nil, err
 	}
