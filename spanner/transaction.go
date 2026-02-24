@@ -735,10 +735,6 @@ func (t *txReadOnly) query(ctx context.Context, statement Statement, options Que
 			req.ResumeToken = resumeToken
 			req.Session = t.sh.getID()
 			req.Transaction = t.getTransactionSelector()
-			fmt.Println("lar.transaction_query.execute_streaming_sql.request_json", larProtoJSON(req))
-			if decoded := larRoutingHintDecodedHex(req); decoded != "" {
-				fmt.Println("lar.transaction_query.execute_streaming_sql.routing_hint_decoded_hex", decoded)
-			}
 			client, err := client.ExecuteStreamingSql(ctx, req, opts...)
 			if err != nil {
 				if _, ok := req.Transaction.GetSelector().(*sppb.TransactionSelector_Begin); ok {

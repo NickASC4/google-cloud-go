@@ -221,6 +221,10 @@ func (c *locationAwareSpannerClient) Read(ctx context.Context, req *spannerpb.Re
 func (c *locationAwareSpannerClient) ExecuteStreamingSql(ctx context.Context, req *spannerpb.ExecuteSqlRequest, opts ...gax.CallOption) (spannerpb.Spanner_ExecuteStreamingSqlClient, error) {
 	routeStart := time.Now()
 	ep, source := c.router.prepareExecuteSQLRequest(ctx, req)
+	fmt.Println("lar.execute_streaming_sql.request_json", larProtoJSON(req))
+	if decoded := larRoutingHintDecodedHex(req); decoded != "" {
+		fmt.Println("lar.execute_streaming_sql.routing_hint_decoded_hex", decoded)
+	}
 	if shouldLogStaleQueryDebugRequest(req) {
 		fmt.Println(
 			"lar.debug.stale_query.execute_streaming_sql.route",
