@@ -24,6 +24,7 @@ import (
 	"math"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
@@ -554,11 +555,34 @@ func (r *keyRecipe) queryParamsToTargetRange(in *structpb.Struct) *targetRange {
 	if in != nil {
 		fields = in.GetFields()
 	}
+	var foldIndex map[string]string
+	foldIndexBuilt := false
 	return r.encodeKeyInternal(func(index int, identifier string) (*structpb.Value, valueLookupStatus) {
 		if identifier == "" {
 			return nil, valueLookupMissing
 		}
 		value, ok := fields[identifier]
+		if ok {
+			return value, valueLookupFound
+		}
+		if !foldIndexBuilt {
+			foldIndex = make(map[string]string, len(fields))
+			for fieldName := range fields {
+				foldedName := strings.ToLower(fieldName)
+				if existing, exists := foldIndex[foldedName]; !exists {
+					foldIndex[foldedName] = fieldName
+				} else if existing != fieldName {
+					// Multiple parameters differ only in case; treat as ambiguous.
+					foldIndex[foldedName] = ""
+				}
+			}
+			foldIndexBuilt = true
+		}
+		fallbackName, exists := foldIndex[strings.ToLower(identifier)]
+		if !exists || fallbackName == "" {
+			return nil, valueLookupMissing
+		}
+		value, ok = fields[fallbackName]
 		if !ok {
 			return nil, valueLookupMissing
 		}

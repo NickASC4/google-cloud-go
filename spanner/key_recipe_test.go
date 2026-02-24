@@ -172,6 +172,73 @@ func TestKeyRecipe_QueryParamsInvalidUUIDIsApproximate(t *testing.T) {
 	}
 }
 
+func TestKeyRecipe_QueryParamsCaseInsensitiveFallback(t *testing.T) {
+	recipeProto := parseKeyRecipeTextProto(t,
+		"part { tag: 1 }\n"+
+			"part {\n"+
+			"  order: ASCENDING\n"+
+			"  null_order: NULLS_FIRST\n"+
+			"  type { code: STRING }\n"+
+			"  identifier: \"id\"\n"+
+			"}\n")
+	params := parseStructTextProto(t,
+		"fields {\n"+
+			"  key: \"Id\"\n"+
+			"  value { string_value: \"foo\" }\n"+
+			"}\n")
+
+	recipe, err := newKeyRecipe(recipeProto)
+	if err != nil {
+		t.Fatalf("newKeyRecipe() failed: %v", err)
+	}
+	target := recipe.queryParamsToTargetRange(params)
+
+	wantStart := expectedKeyForStringValue(t, "foo")
+	if !bytes.Equal(target.start, wantStart) {
+		t.Fatalf("unexpected start with case-insensitive fallback: got %q want %q", target.start, wantStart)
+	}
+	if target.approximate {
+		t.Fatal("expected exact routing key with case-insensitive fallback")
+	}
+}
+
+func TestKeyRecipe_QueryParamsCaseInsensitiveFallbackAmbiguous(t *testing.T) {
+	recipeProto := parseKeyRecipeTextProto(t,
+		"part { tag: 1 }\n"+
+			"part {\n"+
+			"  order: ASCENDING\n"+
+			"  null_order: NULLS_FIRST\n"+
+			"  type { code: STRING }\n"+
+			"  identifier: \"ID\"\n"+
+			"}\n")
+	params := parseStructTextProto(t,
+		"fields {\n"+
+			"  key: \"Id\"\n"+
+			"  value { string_value: \"foo\" }\n"+
+			"}\n"+
+			"fields {\n"+
+			"  key: \"id\"\n"+
+			"  value { string_value: \"bar\" }\n"+
+			"}\n")
+
+	recipe, err := newKeyRecipe(recipeProto)
+	if err != nil {
+		t.Fatalf("newKeyRecipe() failed: %v", err)
+	}
+	target := recipe.queryParamsToTargetRange(params)
+
+	wantStart, err := appendCompositeTag(nil, 1)
+	if err != nil {
+		t.Fatalf("appendCompositeTag() failed: %v", err)
+	}
+	if !bytes.Equal(target.start, wantStart) {
+		t.Fatalf("unexpected start for ambiguous case-insensitive lookup: got %q want %q", target.start, wantStart)
+	}
+	if !target.approximate {
+		t.Fatal("expected approximate=true for ambiguous case-insensitive lookup")
+	}
+}
+
 func parseKeyRecipeTextProto(t *testing.T, text string) *sppb.KeyRecipe {
 	t.Helper()
 	recipe := &sppb.KeyRecipe{}
