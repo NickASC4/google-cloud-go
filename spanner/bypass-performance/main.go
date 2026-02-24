@@ -68,6 +68,8 @@ const (
 	defaultOTELMetricPrefix               = "custom.googleapis.com/irahul"
 	defaultOTELTraceSamplingFraction      = 1.0
 	defaultOTELMetricExportIntervalSecond = 10
+	testProbeFixedKey                     = int64(5_000_000)
+	testProbeRequestsPerCall              = 3
 
 	tableName = "T"
 	columnKey = "Key"
@@ -492,6 +494,14 @@ func newProbe(client *spanner.Client, cfg config) (probe, error) {
 		return &queryProbe{client: client, numRows: cfg.numRows, queryMode: cfg.queryMode}, nil
 	case "stale_query":
 		return &queryProbe{client: client, numRows: cfg.numRows, maxStalenessSeconds: cfg.maxStalenessSeconds, queryMode: cfg.queryMode}, nil
+	case "stale_query_test":
+		return &staleQueryTestProbe{
+			client:              client,
+			maxStalenessSeconds: cfg.maxStalenessSeconds,
+			queryMode:           cfg.queryMode,
+			key:                 testProbeFixedKey,
+			requestsPerCall:     testProbeRequestsPerCall,
+		}, nil
 	case "multi_use_ro_query":
 		return &multiUseReadOnlyQueryProbe{client: client, numRows: cfg.numRows, queryMode: cfg.queryMode}, nil
 	case "write":
@@ -578,6 +588,44 @@ func (p *queryProbe) Probe(ctx context.Context) error {
 		return consumeRowsWithNextLogging(iter, p.Name(), p.queryMode)
 	}
 	return consumeRows(iter)
+}
+
+type staleQueryTestProbe struct {
+	client              *spanner.Client
+	maxStalenessSeconds int64
+	queryMode           string
+	key                 int64
+	requestsPerCall     int
+}
+
+func (p *staleQueryTestProbe) Name() string { return "stale_query_test" }
+
+func (p *staleQueryTestProbe) Probe(ctx context.Context) error {
+	ro := p.client.Single().
+		WithTimestampBound(spanner.MaxStaleness(time.Duration(p.maxStalenessSeconds) * time.Second))
+	queryOpts := spanner.QueryOptions{RequestTag: requestTag(p.Name())}
+	if p.queryMode == "stats" {
+		mode := sppb.ExecuteSqlRequest_WITH_STATS
+		queryOpts.Mode = &mode
+	}
+	for i := 0; i < p.requestsPerCall; i++ {
+		fmt.Println(
+			"lar.debug.stale_query_test.request",
+			"attempt="+strconv.Itoa(i+1),
+			"requests_per_call="+strconv.Itoa(p.requestsPerCall),
+			"fixed_key="+strconv.FormatInt(p.key, 10),
+			"query_mode="+strings.ToUpper(p.queryMode),
+		)
+		stmt := spanner.Statement{
+			SQL:    "SELECT Key, Value FROM T WHERE Key = @Id",
+			Params: map[string]interface{}{"Id": p.key},
+		}
+		iter := ro.QueryWithOptions(ctx, stmt, queryOpts)
+		if err := consumeRowsWithNextLogging(iter, p.Name(), p.queryMode); err != nil {
+			return fmt.Errorf("stale_query_test attempt %d failed: %w", i+1, err)
+		}
+	}
+	return nil
 }
 
 type readWriteProbe struct {

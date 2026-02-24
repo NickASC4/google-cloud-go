@@ -55,6 +55,7 @@ go run ./bypass-performance
 - `multi_blind_dml`
 - `strong_query`
 - `stale_query`
+- `stale_query_test` (runs 3 stale query requests per probe call on fixed key `5000000`)
 - `multi_use_ro_query`
 - `write`
 - `write_no_rp`

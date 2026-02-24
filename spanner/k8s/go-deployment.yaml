@@ -14,6 +14,7 @@ spec:
         app: gclient-read-classic
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
@@ -97,6 +98,7 @@ spec:
         app: gclient-write-classic
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
@@ -188,6 +190,7 @@ spec:
         app: gclient-read-bypass
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
@@ -281,6 +284,7 @@ spec:
         app: gclient-write-bypass
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:

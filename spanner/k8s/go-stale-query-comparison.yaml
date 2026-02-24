@@ -12,6 +12,7 @@ spec:
         app: go-stale-query-classic
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       restartPolicy: Never
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
@@ -50,6 +51,7 @@ spec:
         app: go-stale-query-bypass
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       restartPolicy: Never
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"

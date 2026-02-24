@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  namespace: spanner-ns
+  name: go-stale-query-test-bypass
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: go-stale-query-test-bypass
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      restartPolicy: Never
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      containers:
+        - name: stale-query-test
+          image: us-west1-docker.pkg.dev/outbound-flight/spanner-box/irahul-go-client:latest
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "0.4"
+            limits:
+              memory: "400Mi"
+              cpu: "0.4"
+          env:
+            - name: PROBE_TYPE
+              value: "stale_query_test"
+            - name: QUERY_MODE
+              value: "normal"
+            - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
+              value: "true"
+            - name: OTEL_SERVICE_NAME
+              value: "irahul-gbypass-stale-query-test"
+            - name: QPS
+              value: "1"
+            - name: PARALLELISM
+              value: "1"
+            - name: WARMUP_CYCLES
+              value: "0"
+            - name: ENDPOINT
+              value: "10.142.15.195:15000"
+            - name: SPANNER_DATABASE_PATH
+              value: "projects/default/instances/default/databases/db"

@@ -11,6 +11,7 @@ spec:
         app: go-multi-ro-query-classic
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       restartPolicy: Never
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
@@ -50,6 +51,7 @@ spec:
     spec:
       restartPolicy: Never
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
