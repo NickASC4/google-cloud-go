@@ -18,21 +18,33 @@ package spanner
 
 import (
 	"context"
+	"fmt"
 
 	"cloud.google.com/go/internal/trace"
 	"go.opentelemetry.io/otel/attribute"
-	oteltrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func larTraceEvent(ctx context.Context, eventName string, attrs ...attribute.KeyValue) {
 	if ctx == nil {
 		return
 	}
-	span := oteltrace.SpanFromContext(ctx)
-	if span.IsRecording() {
-		span.AddEvent(eventName, oteltrace.WithAttributes(attrs...))
-	}
 	trace.TracePrintf(ctx, attrsToMap(attrs...), "%s", eventName)
+}
+
+func larProtoJSON(m proto.Message) string {
+	if m == nil {
+		return "{}"
+	}
+	out, err := protojson.MarshalOptions{
+		UseProtoNames:   true,
+		EmitUnpopulated: false,
+	}.Marshal(m)
+	if err != nil {
+		return fmt.Sprintf("{\"marshal_error\":%q}", err.Error())
+	}
+	return string(out)
 }
 
 func attrsToMap(attrs ...attribute.KeyValue) map[string]interface{} {

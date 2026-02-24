@@ -22,6 +22,7 @@ go run ./bypass-performance
 ### Workload controls
 
 - `PROBE_TYPE`: default `strong_read`.
+- `QUERY_MODE`: query execution mode for query probes (`normal|stats`). Default: `normal`.
 - `QPS`: target QPS. Default: `4`.
 - `PARALLELISM`: max in-flight requests. Default: `8`.
 - `WARMUP_CYCLES`: warmup request count. Default: `1000`.

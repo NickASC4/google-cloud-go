@@ -82,6 +82,7 @@ type config struct {
 	endpoint            string
 	insecure            bool
 	probeType           string
+	queryMode           string
 	qps                 int
 	numRows             int64
 	payloadSize         int
@@ -172,6 +173,7 @@ func loadConfig() (config, error) {
 		endpoint:            normalizeEndpoint(getEnv("ENDPOINT", defaultEndpoint)),
 		insecure:            getEnvBool("INSECURE", true),
 		probeType:           strings.ToLower(getEnv("PROBE_TYPE", defaultProbeType)),
+		queryMode:           strings.ToLower(getEnv("QUERY_MODE", "normal")),
 		qps:                 getEnvInt("QPS", defaultQPS),
 		numRows:             getEnvInt64("NUM_ROWS", defaultNumRows),
 		payloadSize:         getEnvInt("PAYLOAD_SIZE", defaultPayloadSize),
@@ -213,12 +215,18 @@ func loadConfig() (config, error) {
 	case cfg.otelMetricExportIntervalSecond <= 0:
 		return cfg, fmt.Errorf("OTEL_METRIC_EXPORT_INTERVAL_SECONDS must be > 0, got %d", cfg.otelMetricExportIntervalSecond)
 	}
+	switch cfg.queryMode {
+	case "normal", "stats":
+	default:
+		return cfg, fmt.Errorf("QUERY_MODE must be one of [normal, stats], got %q", cfg.queryMode)
+	}
 	return cfg, nil
 }
 
 func printConfig(cfg config) {
-	log.Printf("probe=%s qps=%d parallelism=%d endpoint=%s db=%s num_rows=%d payload_size=%d max_staleness_s=%d bypass=%s otel_enabled=%t otel_service=%s",
+	log.Printf("probe=%s query_mode=%s qps=%d parallelism=%d endpoint=%s db=%s num_rows=%d payload_size=%d max_staleness_s=%d bypass=%s otel_enabled=%t otel_service=%s",
 		cfg.probeType,
+		cfg.queryMode,
 		cfg.qps,
 		cfg.parallelism,
 		cfg.endpoint,
@@ -473,11 +481,11 @@ func newProbe(client *spanner.Client, cfg config) (probe, error) {
 	case "multi_blind_dml":
 		return &multiBlindDMLProbe{client: client, numRows: cfg.numRows, payloadSize: cfg.payloadSize, statements: 5}, nil
 	case "strong_query":
-		return &queryProbe{client: client, numRows: cfg.numRows}, nil
+		return &queryProbe{client: client, numRows: cfg.numRows, queryMode: cfg.queryMode}, nil
 	case "stale_query":
-		return &queryProbe{client: client, numRows: cfg.numRows, maxStalenessSeconds: cfg.maxStalenessSeconds}, nil
+		return &queryProbe{client: client, numRows: cfg.numRows, maxStalenessSeconds: cfg.maxStalenessSeconds, queryMode: cfg.queryMode}, nil
 	case "multi_use_ro_query":
-		return &multiUseReadOnlyQueryProbe{client: client, numRows: cfg.numRows}, nil
+		return &multiUseReadOnlyQueryProbe{client: client, numRows: cfg.numRows, queryMode: cfg.queryMode}, nil
 	case "write":
 		return &writeProbe{client: client, numRows: cfg.numRows, payloadSize: cfg.payloadSize, replayProtection: true}, nil
 	case "write_no_rp":
@@ -532,6 +540,7 @@ type queryProbe struct {
 	client              *spanner.Client
 	numRows             int64
 	maxStalenessSeconds int64
+	queryMode           string
 }
 
 func (p *queryProbe) Name() string {
@@ -551,7 +560,12 @@ func (p *queryProbe) Probe(ctx context.Context) error {
 	if p.maxStalenessSeconds > 0 {
 		ro = ro.WithTimestampBound(spanner.MaxStaleness(time.Duration(p.maxStalenessSeconds) * time.Second))
 	}
-	iter := ro.QueryWithOptions(ctx, stmt, spanner.QueryOptions{RequestTag: requestTag(p.Name())})
+	queryOpts := spanner.QueryOptions{RequestTag: requestTag(p.Name())}
+	if p.queryMode == "stats" {
+		mode := sppb.ExecuteSqlRequest_WITH_STATS
+		queryOpts.Mode = &mode
+	}
+	iter := ro.QueryWithOptions(ctx, stmt, queryOpts)
 	return consumeRows(iter)
 }
 
@@ -769,8 +783,9 @@ func (p *writeProbe) Probe(ctx context.Context) error {
 }
 
 type multiUseReadOnlyQueryProbe struct {
-	client  *spanner.Client
-	numRows int64
+	client    *spanner.Client
+	numRows   int64
+	queryMode string
 }
 
 func (p *multiUseReadOnlyQueryProbe) Name() string { return "multi_use_ro_query" }
@@ -794,7 +809,12 @@ func (p *multiUseReadOnlyQueryProbe) Probe(ctx context.Context) error {
 		SQL:    "SELECT Key, Value FROM T WHERE Key = @Id",
 		Params: map[string]interface{}{"Id": secondKey},
 	}
-	queryIter := tx.QueryWithOptions(ctx, stmt, spanner.QueryOptions{RequestTag: requestTag(p.Name())})
+	queryOpts := spanner.QueryOptions{RequestTag: requestTag(p.Name())}
+	if p.queryMode == "stats" {
+		mode := sppb.ExecuteSqlRequest_PROFILE
+		queryOpts.Mode = &mode
+	}
+	queryIter := tx.QueryWithOptions(ctx, stmt, queryOpts)
 	return consumeRows(queryIter)
 }
 

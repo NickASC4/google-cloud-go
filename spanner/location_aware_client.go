@@ -219,6 +219,10 @@ func (c *locationAwareSpannerClient) ExecuteStreamingSql(ctx context.Context, re
 	routeStart := time.Now()
 	ep, source := c.router.prepareExecuteSQLRequest(ctx, req)
 	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/ExecuteStreamingSql")
+	larTraceEvent(ctx, "lar.execute_streaming_sql.request_json",
+		attribute.String("query_mode", req.GetQueryMode().String()),
+		attribute.String("payload_json", larProtoJSON(req)),
+	)
 	client := c.clientForEndpoint(ep)
 	stream, err := client.ExecuteStreamingSql(ctx, req, opts...)
 	if err != nil {
@@ -372,6 +376,12 @@ func (s *affinityTrackingStream) Recv() (*spannerpb.PartialResultSet, error) {
 	prs, err := s.inner.Recv()
 	if err != nil {
 		return nil, err
+	}
+	if prs.GetStats() != nil {
+		larTraceEvent(s.ctx, "lar.execute_streaming_sql.partial_result_set_json",
+			attribute.Bool("has_stats", true),
+			attribute.String("payload_json", larProtoJSON(prs)),
+		)
 	}
 	// Record transaction metadata from the first PartialResultSet that contains
 	// a transaction ID.
