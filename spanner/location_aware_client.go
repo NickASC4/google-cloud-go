@@ -19,6 +19,7 @@ package spanner
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -220,6 +221,15 @@ func (c *locationAwareSpannerClient) Read(ctx context.Context, req *spannerpb.Re
 func (c *locationAwareSpannerClient) ExecuteStreamingSql(ctx context.Context, req *spannerpb.ExecuteSqlRequest, opts ...gax.CallOption) (spannerpb.Spanner_ExecuteStreamingSqlClient, error) {
 	routeStart := time.Now()
 	ep, source := c.router.prepareExecuteSQLRequest(ctx, req)
+	if shouldLogStaleQueryDebugRequest(req) {
+		fmt.Println(
+			"lar.debug.stale_query.execute_streaming_sql.route",
+			"source="+source,
+			"target_address="+endpointAddressOrDefault(ep),
+			"request_tag="+req.GetRequestOptions().GetRequestTag(),
+			"query_mode="+req.GetQueryMode().String(),
+		)
+	}
 	c.traceRoutingDecision(ctx, routeStart, source, ep, "/google.spanner.v1.Spanner/ExecuteStreamingSql")
 	requestAttrs := []attribute.KeyValue{
 		attribute.String("query_mode", req.GetQueryMode().String()),
@@ -449,6 +459,16 @@ func isStaleReadOnlyOption(ro *spannerpb.TransactionOptions_ReadOnly) bool {
 		ro.GetExactStaleness() != nil ||
 		ro.GetMinReadTimestamp() != nil ||
 		ro.GetReadTimestamp() != nil
+}
+
+func shouldLogStaleQueryDebugRequest(req *spannerpb.ExecuteSqlRequest) bool {
+	if req == nil {
+		return false
+	}
+	if strings.Contains(strings.ToLower(req.GetRequestOptions().GetRequestTag()), "stale_query") {
+		return true
+	}
+	return isStaleReadOnlySelector(req.GetTransaction())
 }
 
 func readOnlyBeginFromSelector(selector *spannerpb.TransactionSelector) (bool, bool) {

@@ -18,6 +18,9 @@ package spanner
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -124,6 +127,7 @@ func (f *channelFinder) findServerExecuteSQL(ctx context.Context, req *sppb.Exec
 	if req == nil {
 		return nil
 	}
+	debugStale := shouldLogStaleQueryDebugRequest(req)
 	findStart := time.Now()
 	sskeyStart := time.Now()
 	f.recipeCache.computeQueryKeys(req)
@@ -133,6 +137,8 @@ func (f *channelFinder) findServerExecuteSQL(ctx context.Context, req *sppb.Exec
 		attribute.String("operation_type", "query"),
 	)
 	hint := ensureExecuteSQLRoutingHint(req)
+	generatedKey := append([]byte(nil), hint.GetKey()...)
+	generatedLimitKey := append([]byte(nil), hint.GetLimitKey()...)
 	lookupStart := time.Now()
 	endpoint := f.fillRoutingHint(ctx, preferLeader, rangeModePickRandom, req.GetDirectedReadOptions(), hint)
 	lookupDurationMicros := time.Since(lookupStart).Microseconds()
@@ -142,6 +148,25 @@ func (f *channelFinder) findServerExecuteSQL(ctx context.Context, req *sppb.Exec
 	if endpoint != nil {
 		targetAddress = endpoint.Address()
 		result = "hit"
+	}
+	if debugStale {
+		fmt.Println(
+			"lar.debug.stale_query.routing_hint",
+			"request_tag="+req.GetRequestOptions().GetRequestTag(),
+			"param_Id="+paramValueForDebug(req, "Id"),
+			"generated_key_b64="+base64.StdEncoding.EncodeToString(generatedKey),
+			"generated_key_hex="+hex.EncodeToString(generatedKey),
+			"generated_limit_key_b64="+base64.StdEncoding.EncodeToString(generatedLimitKey),
+			"generated_limit_key_hex="+hex.EncodeToString(generatedLimitKey),
+			"final_key_b64="+base64.StdEncoding.EncodeToString(hint.GetKey()),
+			"final_key_hex="+hex.EncodeToString(hint.GetKey()),
+			"final_limit_key_b64="+base64.StdEncoding.EncodeToString(hint.GetLimitKey()),
+			"final_limit_key_hex="+hex.EncodeToString(hint.GetLimitKey()),
+			"group_uid="+fmt.Sprint(hint.GetGroupUid()),
+			"split_id="+fmt.Sprint(hint.GetSplitId()),
+			"tablet_uid="+fmt.Sprint(hint.GetTabletUid()),
+			"target_address="+targetAddress,
+		)
 	}
 	larTraceEvent(ctx, "lar.range_cache_lookup",
 		attribute.Int64("duration_us", lookupDurationMicros),
@@ -153,6 +178,29 @@ func (f *channelFinder) findServerExecuteSQL(ctx context.Context, req *sppb.Exec
 		attribute.String("target_address", targetAddress),
 	)
 	return endpoint
+}
+
+func paramValueForDebug(req *sppb.ExecuteSqlRequest, name string) string {
+	if req == nil || req.GetParams() == nil {
+		return ""
+	}
+	value := req.GetParams().GetFields()[name]
+	if value == nil {
+		return ""
+	}
+	if s := value.GetStringValue(); s != "" {
+		return s
+	}
+	if value.GetNumberValue() != 0 {
+		return fmt.Sprintf("%v", value.GetNumberValue())
+	}
+	if value.GetBoolValue() {
+		return "true"
+	}
+	if value.GetNullValue() != 0 {
+		return "NULL"
+	}
+	return value.String()
 }
 
 func (f *channelFinder) findServerExecuteSQLWithTransaction(ctx context.Context, req *sppb.ExecuteSqlRequest) channelEndpoint {
