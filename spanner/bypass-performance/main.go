@@ -574,6 +574,9 @@ func (p *queryProbe) Probe(ctx context.Context) error {
 		queryOpts.Mode = &mode
 	}
 	iter := ro.QueryWithOptions(ctx, stmt, queryOpts)
+	if p.maxStalenessSeconds > 0 {
+		return consumeRowsWithNextLogging(iter, p.Name(), p.queryMode)
+	}
 	return consumeRows(iter)
 }
 
@@ -836,6 +839,40 @@ func consumeRows(iter *spanner.RowIterator) error {
 		if err != nil {
 			return err
 		}
+	}
+}
+
+func consumeRowsWithNextLogging(iter *spanner.RowIterator, probeName string, queryMode string) error {
+	defer iter.Stop()
+	rowsRead := 0
+	for {
+		_, err := iter.Next()
+		if errors.Is(err, iterator.Done) {
+			fmt.Println(
+				"lar.transaction_query.iter_next.done",
+				"probe="+probeName,
+				"query_mode="+strings.ToUpper(queryMode),
+				"rows_read="+strconv.Itoa(rowsRead),
+			)
+			return nil
+		}
+		if err != nil {
+			fmt.Println(
+				"lar.transaction_query.iter_next.error",
+				"probe="+probeName,
+				"query_mode="+strings.ToUpper(queryMode),
+				"rows_read="+strconv.Itoa(rowsRead),
+				"error="+err.Error(),
+			)
+			return err
+		}
+		rowsRead++
+		fmt.Println(
+			"lar.transaction_query.iter_next.row",
+			"probe="+probeName,
+			"query_mode="+strings.ToUpper(queryMode),
+			"rows_read="+strconv.Itoa(rowsRead),
+		)
 	}
 }
 
