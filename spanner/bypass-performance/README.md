@@ -37,6 +37,7 @@ go run ./bypass-performance
 - `OTEL_PROJECT_ID`: metrics/traces project id. Default: `outbound-flight`.
 - `OTEL_SERVICE_NAME`: OTel `service.name`. Default: `irahul-gbypass`.
 - `OTEL_METRIC_PREFIX`: metric descriptor prefix. Default: `custom.googleapis.com/irahul`.
+- `PROBE_TRACING_ENABLED`: enable/disable probe spans (`true|false`). Default: `true`.
 - `OTEL_TRACE_SAMPLING_FRACTION`: trace sampling ratio in `[0,1]`. Default: `1.0`.
 - `OTEL_METRIC_EXPORT_INTERVAL_SECONDS`: metric export interval. Default: `10`.
 - `CLOUD_TRACE_ENDPOINT`: optional Cloud Trace override endpoint.

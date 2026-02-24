@@ -13,6 +13,7 @@ spec:
       labels:
         app: gclient-read-classic
     spec:
+      hostNetwork: true
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
@@ -32,7 +33,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *container-template
@@ -43,7 +44,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *container-template
@@ -54,7 +55,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *container-template
@@ -65,7 +66,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *container-template
@@ -76,7 +77,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
 ---
@@ -95,6 +96,7 @@ spec:
       labels:
         app: gclient-write-classic
     spec:
+      hostNetwork: true
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
@@ -112,7 +114,7 @@ spec:
             - name: PROBE_TYPE
               value: "read_write"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-container-template
@@ -121,7 +123,7 @@ spec:
             - name: PROBE_TYPE
               value: "rr_occ_dml"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-container-template
@@ -130,7 +132,7 @@ spec:
             - name: PROBE_TYPE
               value: "dml"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-container-template
@@ -139,7 +141,7 @@ spec:
             - name: PROBE_TYPE
               value: "blind_dml"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-container-template
@@ -148,7 +150,7 @@ spec:
             - name: PROBE_TYPE
               value: "multi_blind_dml"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-container-template
@@ -157,7 +159,7 @@ spec:
             - name: PROBE_TYPE
               value: "write"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-container-template
@@ -166,7 +168,7 @@ spec:
             - name: PROBE_TYPE
               value: "write_no_rp"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
 ---
@@ -185,6 +187,7 @@ spec:
       labels:
         app: gclient-read-bypass
     spec:
+      hostNetwork: true
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
@@ -206,7 +209,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *read-bypass-template
@@ -219,7 +222,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *read-bypass-template
@@ -232,7 +235,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *read-bypass-template
@@ -245,7 +248,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *read-bypass-template
@@ -258,7 +261,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
 ---
@@ -277,6 +280,7 @@ spec:
       labels:
         app: gclient-write-bypass
     spec:
+      hostNetwork: true
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
@@ -296,7 +300,7 @@ spec:
             - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
               value: "true"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-bypass-template
@@ -307,7 +311,7 @@ spec:
             - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
               value: "true"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-bypass-template
@@ -318,7 +322,7 @@ spec:
             - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
               value: "true"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-bypass-template
@@ -329,7 +333,7 @@ spec:
             - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
               value: "true"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-bypass-template
@@ -340,7 +344,7 @@ spec:
             - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
               value: "true"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-bypass-template
@@ -351,7 +355,7 @@ spec:
             - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
               value: "true"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
         - <<: *write-bypass-template
@@ -362,6 +366,6 @@ spec:
             - name: GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API
               value: "true"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"

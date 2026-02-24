@@ -103,7 +103,6 @@ type txReadOnly struct {
 	clientContext *sppb.RequestOptions_ClientContext
 
 	otConfig *openTelemetryConfig
-
 }
 
 func (t *txReadOnly) isDefaultInlinedBegin() bool {
@@ -736,6 +735,7 @@ func (t *txReadOnly) query(ctx context.Context, statement Statement, options Que
 			req.ResumeToken = resumeToken
 			req.Session = t.sh.getID()
 			req.Transaction = t.getTransactionSelector()
+			fmt.Println("lar.transaction_query.execute_streaming_sql.request_json", larProtoJSON(req))
 			client, err := client.ExecuteStreamingSql(ctx, req, opts...)
 			if err != nil {
 				if _, ok := req.Transaction.GetSelector().(*sppb.TransactionSelector_Begin); ok {

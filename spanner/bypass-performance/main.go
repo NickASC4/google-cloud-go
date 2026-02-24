@@ -95,6 +95,7 @@ type config struct {
 	otelProjectID                  string
 	otelServiceName                string
 	otelMetricPrefix               string
+	enableProbeTracing             bool
 	otelTraceSamplingFraction      float64
 	otelMetricExportIntervalSecond int
 	cloudTraceEndpoint             string
@@ -186,6 +187,7 @@ func loadConfig() (config, error) {
 		otelProjectID:                  getEnv("OTEL_PROJECT_ID", defaultOTELProjectID),
 		otelServiceName:                getEnv("OTEL_SERVICE_NAME", defaultOTELServiceName),
 		otelMetricPrefix:               getEnv("OTEL_METRIC_PREFIX", defaultOTELMetricPrefix),
+		enableProbeTracing:             getEnvBool("PROBE_TRACING_ENABLED", true),
 		otelTraceSamplingFraction:      getEnvFloat64("OTEL_TRACE_SAMPLING_FRACTION", defaultOTELTraceSamplingFraction),
 		otelMetricExportIntervalSecond: getEnvInt("OTEL_METRIC_EXPORT_INTERVAL_SECONDS", defaultOTELMetricExportIntervalSecond),
 		cloudTraceEndpoint:             normalizeEndpoint(strings.TrimSpace(os.Getenv("CLOUD_TRACE_ENDPOINT"))),
@@ -224,7 +226,7 @@ func loadConfig() (config, error) {
 }
 
 func printConfig(cfg config) {
-	log.Printf("probe=%s query_mode=%s qps=%d parallelism=%d endpoint=%s db=%s num_rows=%d payload_size=%d max_staleness_s=%d bypass=%s otel_enabled=%t otel_service=%s",
+	log.Printf("probe=%s query_mode=%s qps=%d parallelism=%d endpoint=%s db=%s num_rows=%d payload_size=%d max_staleness_s=%d bypass=%s otel_enabled=%t probe_tracing_enabled=%t otel_service=%s",
 		cfg.probeType,
 		cfg.queryMode,
 		cfg.qps,
@@ -236,6 +238,7 @@ func printConfig(cfg config) {
 		cfg.maxStalenessSeconds,
 		os.Getenv("GOOGLE_SPANNER_EXPERIMENTAL_LOCATION_API"),
 		cfg.enableOTEL,
+		cfg.enableProbeTracing,
 		cfg.otelServiceName,
 	)
 }
@@ -398,7 +401,7 @@ func run(ctx context.Context, cfg config, p probe, otelState *otelRuntime) {
 
 					probeCtx := ctx
 					var span oteltrace.Span
-					if otelState != nil && otelState.tracer != nil {
+					if cfg.enableProbeTracing && otelState != nil && otelState.tracer != nil {
 						probeCtx, span = otelState.tracer.Start(
 							ctx,
 							"probe."+p.Name(),

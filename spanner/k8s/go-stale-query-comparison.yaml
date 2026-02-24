@@ -11,6 +11,7 @@ spec:
       labels:
         app: go-stale-query-classic
     spec:
+      hostNetwork: true
       restartPolicy: Never
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
@@ -32,7 +33,7 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
 ---
@@ -48,6 +49,7 @@ spec:
       labels:
         app: go-stale-query-bypass
     spec:
+      hostNetwork: true
       restartPolicy: Never
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
@@ -71,6 +73,6 @@ spec:
             - name: QPS
               value: "10"
             - name: ENDPOINT
-              value: "10.128.2.132:15000"
+              value: "10.142.15.195:15000"
             - name: SPANNER_DATABASE_PATH
               value: "projects/default/instances/default/databases/db"
