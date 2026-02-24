@@ -110,6 +110,10 @@ type probe interface {
 	Probe(context.Context) error
 }
 
+type oneShotProbe interface {
+	oneShot() bool
+}
+
 type metrics struct {
 	okCount         atomic.Int64
 	errorCount      atomic.Int64
@@ -160,10 +164,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create probe: %v", err)
 	}
-	if err := warmup(ctx, p, cfg.warmupCycles); err != nil {
+	warmupCycles := cfg.warmupCycles
+	if isOneShotProbe(p) && warmupCycles != 0 {
+		log.Printf("probe=%s runs once; overriding WARMUP_CYCLES from %d to 0", p.Name(), warmupCycles)
+		warmupCycles = 0
+	}
+	if err := warmup(ctx, p, warmupCycles); err != nil {
 		log.Fatalf("warmup failed: %v", err)
 	}
-	log.Printf("warmup complete (%d cycles), starting probe loop", cfg.warmupCycles)
+	log.Printf("warmup complete (%d cycles), starting probe loop", warmupCycles)
 	run(ctx, cfg, p, otelState)
 }
 
@@ -382,6 +391,21 @@ func newClient(ctx context.Context, cfg config, otelState *otelRuntime) (*spanne
 }
 
 func run(ctx context.Context, cfg config, p probe, otelState *otelRuntime) {
+	if isOneShotProbe(p) {
+		m := &metrics{}
+		start := time.Now()
+		err := executeProbeCall(ctx, cfg, p, otelState, m)
+		if err != nil {
+			m.errorCount.Add(1)
+			log.Printf("probe_error type=%s err=%v", p.Name(), err)
+		} else {
+			m.okCount.Add(1)
+		}
+		printSummary(m, time.Since(start))
+		log.Printf("one-shot probe complete; exiting")
+		return
+	}
+
 	period := time.Second / time.Duration(cfg.qps)
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()
@@ -405,39 +429,7 @@ func run(ctx context.Context, cfg config, p probe, otelState *otelRuntime) {
 			case sem <- struct{}{}:
 				go func() {
 					defer func() { <-sem }()
-
-					probeCtx := ctx
-					var span oteltrace.Span
-					if cfg.enableProbeTracing && otelState != nil && otelState.tracer != nil {
-						probeCtx, span = otelState.tracer.Start(
-							ctx,
-							"probe."+p.Name(),
-							oteltrace.WithAttributes(
-								attribute.String("probe.type", p.Name()),
-								attribute.Bool("probe.bypass_enabled", otelState.bypassEnabled),
-								attribute.String("probe.host", otelState.host),
-							),
-						)
-					}
-
-					callStart := time.Now()
-					err := p.Probe(probeCtx)
-					latency := time.Since(callStart)
-					m.totalLatencyMic.Add(latency.Microseconds())
-
-					if span != nil {
-						if err != nil {
-							span.SetStatus(otelcodes.Error, err.Error())
-							span.RecordError(err)
-						}
-						span.SetAttributes(attribute.Float64("probe.latency_ms", float64(latency.Microseconds())/1000.0))
-						span.End()
-					}
-					if otelState != nil {
-						otelState.observeProbe(probeCtx, p.Name(), latency)
-					}
-
-					if err != nil {
+					if err := executeProbeCall(ctx, cfg, p, otelState, m); err != nil {
 						m.errorCount.Add(1)
 						log.Printf("probe_error type=%s err=%v", p.Name(), err)
 						return
@@ -448,6 +440,42 @@ func run(ctx context.Context, cfg config, p probe, otelState *otelRuntime) {
 			}
 		}
 	}
+}
+
+func executeProbeCall(ctx context.Context, cfg config, p probe, otelState *otelRuntime, m *metrics) error {
+	probeCtx := ctx
+	var span oteltrace.Span
+	if cfg.enableProbeTracing && otelState != nil && otelState.tracer != nil {
+		probeCtx, span = otelState.tracer.Start(
+			ctx,
+			"probe."+p.Name(),
+			oteltrace.WithAttributes(
+				attribute.String("probe.type", p.Name()),
+				attribute.Bool("probe.bypass_enabled", otelState.bypassEnabled),
+				attribute.String("probe.host", otelState.host),
+			),
+		)
+	}
+
+	callStart := time.Now()
+	err := p.Probe(probeCtx)
+	latency := time.Since(callStart)
+	if m != nil {
+		m.totalLatencyMic.Add(latency.Microseconds())
+	}
+
+	if span != nil {
+		if err != nil {
+			span.SetStatus(otelcodes.Error, err.Error())
+			span.RecordError(err)
+		}
+		span.SetAttributes(attribute.Float64("probe.latency_ms", float64(latency.Microseconds())/1000.0))
+		span.End()
+	}
+	if otelState != nil {
+		otelState.observeProbe(probeCtx, p.Name(), latency)
+	}
+	return err
 }
 
 func warmup(ctx context.Context, p probe, cycles int) error {
@@ -600,15 +628,17 @@ type staleQueryTestProbe struct {
 
 func (p *staleQueryTestProbe) Name() string { return "stale_query_test" }
 
+func (p *staleQueryTestProbe) oneShot() bool { return true }
+
 func (p *staleQueryTestProbe) Probe(ctx context.Context) error {
-	ro := p.client.Single().
-		WithTimestampBound(spanner.MaxStaleness(time.Duration(p.maxStalenessSeconds) * time.Second))
-	queryOpts := spanner.QueryOptions{RequestTag: requestTag(p.Name())}
-	if p.queryMode == "stats" {
-		mode := sppb.ExecuteSqlRequest_WITH_STATS
-		queryOpts.Mode = &mode
-	}
 	for i := 0; i < p.requestsPerCall; i++ {
+		ro := p.client.Single().
+			WithTimestampBound(spanner.MaxStaleness(time.Duration(p.maxStalenessSeconds) * time.Second))
+		queryOpts := spanner.QueryOptions{RequestTag: requestTag(p.Name())}
+		if p.queryMode == "stats" {
+			mode := sppb.ExecuteSqlRequest_WITH_STATS
+			queryOpts.Mode = &mode
+		}
 		fmt.Println(
 			"lar.debug.stale_query_test.request",
 			"attempt="+strconv.Itoa(i+1),
@@ -626,6 +656,14 @@ func (p *staleQueryTestProbe) Probe(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func isOneShotProbe(p probe) bool {
+	if p == nil {
+		return false
+	}
+	oneShot, ok := p.(oneShotProbe)
+	return ok && oneShot.oneShot()
 }
 
 type readWriteProbe struct {
