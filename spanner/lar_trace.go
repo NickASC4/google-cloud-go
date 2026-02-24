@@ -40,11 +40,50 @@ func larProtoJSON(m proto.Message) string {
 	out, err := protojson.MarshalOptions{
 		UseProtoNames:   true,
 		EmitUnpopulated: false,
+		Multiline:       false,
 	}.Marshal(m)
 	if err != nil {
 		return fmt.Sprintf("{\"marshal_error\":%q}", err.Error())
 	}
 	return string(out)
+}
+
+const (
+	traceJSONChunkSize = 200
+	traceJSONMaxChunks = 100
+)
+
+func larJSONPayloadAttrs(jsonPayload string) []attribute.KeyValue {
+	if len(jsonPayload) <= traceJSONChunkSize {
+		return []attribute.KeyValue{
+			attribute.Int("payload_json_parts", 1),
+			attribute.Int("payload_json_bytes", len(jsonPayload)),
+			attribute.String("payload_json_part_000", jsonPayload),
+		}
+	}
+	payloadBytes := []byte(jsonPayload)
+	totalParts := (len(payloadBytes) + traceJSONChunkSize - 1) / traceJSONChunkSize
+	partsToEmit := totalParts
+	if partsToEmit > traceJSONMaxChunks {
+		partsToEmit = traceJSONMaxChunks
+	}
+	attrs := []attribute.KeyValue{
+		attribute.Int("payload_json_parts", totalParts),
+		attribute.Int("payload_json_parts_emitted", partsToEmit),
+		attribute.Int("payload_json_bytes", len(payloadBytes)),
+	}
+	for i := 0; i < partsToEmit; i++ {
+		start := i * traceJSONChunkSize
+		end := start + traceJSONChunkSize
+		if end > len(payloadBytes) {
+			end = len(payloadBytes)
+		}
+		attrs = append(attrs, attribute.String(fmt.Sprintf("payload_json_part_%03d", i), string(payloadBytes[start:end])))
+	}
+	if partsToEmit < totalParts {
+		attrs = append(attrs, attribute.Bool("payload_json_partially_emitted", true))
+	}
+	return attrs
 }
 
 func attrsToMap(attrs ...attribute.KeyValue) map[string]interface{} {
