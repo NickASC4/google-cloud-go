@@ -380,6 +380,7 @@ func (s *affinityTrackingStream) Recv() (*spannerpb.PartialResultSet, error) {
 		return nil, err
 	}
 	if prs.GetStats() != nil {
+		fmt.Println("lar.execute_streaming_sql.partial_result_set_json", larProtoJSON(prs))
 		fmt.Println("lar.execute_streaming_sql.partial_result_set_stats_json", larProtoJSON(prs.GetStats()))
 		responseAttrs := []attribute.KeyValue{
 			attribute.Bool("has_stats", true),
