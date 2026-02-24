@@ -186,6 +186,7 @@ func (c *locationAwareSpannerClient) StreamingRead(ctx context.Context, req *spa
 		isReadOnlyBegin,
 		readOnlyStrong,
 		isReadWriteBeginFromSelector(req.GetTransaction()),
+		false,
 		ctx,
 	), nil
 }
@@ -238,6 +239,7 @@ func (c *locationAwareSpannerClient) ExecuteStreamingSql(ctx context.Context, re
 		isReadOnlyBegin,
 		readOnlyStrong,
 		isReadWriteBeginFromSelector(req.GetTransaction()),
+		isStaleReadOnlySelector(req.GetTransaction()),
 		ctx,
 	), nil
 }
@@ -341,6 +343,7 @@ type affinityTrackingStream struct {
 	trackReadOnlyBegin bool
 	readOnlyStrong     bool
 	trackAffinity      bool
+	logEveryPartial    bool
 	ctx                context.Context
 	once               sync.Once
 	inner              spannerpb.Spanner_ExecuteStreamingSqlClient
@@ -360,6 +363,7 @@ func newAffinityTrackingStream(
 	trackReadOnlyBegin bool,
 	readOnlyStrong bool,
 	trackAffinity bool,
+	logEveryPartial bool,
 	ctx context.Context,
 ) *affinityTrackingStream {
 	return &affinityTrackingStream{
@@ -369,6 +373,7 @@ func newAffinityTrackingStream(
 		trackReadOnlyBegin: trackReadOnlyBegin,
 		readOnlyStrong:     readOnlyStrong,
 		trackAffinity:      trackAffinity,
+		logEveryPartial:    logEveryPartial,
 		ctx:                ctx,
 		inner:              inner,
 	}
@@ -379,8 +384,13 @@ func (s *affinityTrackingStream) Recv() (*spannerpb.PartialResultSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	if prs.GetStats() != nil {
+	if s.logEveryPartial {
 		fmt.Println("lar.execute_streaming_sql.partial_result_set_json", larProtoJSON(prs))
+	}
+	if prs.GetStats() != nil {
+		if !s.logEveryPartial {
+			fmt.Println("lar.execute_streaming_sql.partial_result_set_json", larProtoJSON(prs))
+		}
 		fmt.Println("lar.execute_streaming_sql.partial_result_set_stats_json", larProtoJSON(prs.GetStats()))
 		responseAttrs := []attribute.KeyValue{
 			attribute.Bool("has_stats", true),
@@ -411,6 +421,34 @@ func (s *affinityTrackingStream) Recv() (*spannerpb.PartialResultSet, error) {
 	// Observe cache updates from every PartialResultSet.
 	s.router.observePartialResultSet(s.ctx, prs)
 	return prs, nil
+}
+
+func isStaleReadOnlySelector(selector *spannerpb.TransactionSelector) bool {
+	if selector == nil {
+		return false
+	}
+	if singleUse := selector.GetSingleUse(); singleUse != nil {
+		if ro := singleUse.GetReadOnly(); ro != nil {
+			return isStaleReadOnlyOption(ro)
+		}
+	}
+	if begin := selector.GetBegin(); begin != nil {
+		if ro := begin.GetReadOnly(); ro != nil {
+			return isStaleReadOnlyOption(ro)
+		}
+	}
+	return false
+}
+
+func isStaleReadOnlyOption(ro *spannerpb.TransactionOptions_ReadOnly) bool {
+	if ro == nil {
+		return false
+	}
+	// Any non-strong timestamp bound indicates a stale/time-travel read.
+	return ro.GetMaxStaleness() != nil ||
+		ro.GetExactStaleness() != nil ||
+		ro.GetMinReadTimestamp() != nil ||
+		ro.GetReadTimestamp() != nil
 }
 
 func readOnlyBeginFromSelector(selector *spannerpb.TransactionSelector) (bool, bool) {
