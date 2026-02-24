@@ -252,7 +252,6 @@ func initializeOpenTelemetry(ctx context.Context, cfg config) (*otelRuntime, err
 	noop := &otelRuntime{
 		shutdown:      func(context.Context) error { return nil },
 		meterProvider: otel.GetMeterProvider(),
-		tracer:        otel.Tracer("gbypass"),
 		host:          host,
 		bypassEnabled: bypassEnabled,
 	}
@@ -265,20 +264,25 @@ func initializeOpenTelemetry(ctx context.Context, cfg config) (*otelRuntime, err
 		attribute.String("service.name", cfg.otelServiceName),
 	)
 
-	traceOpts := []gcptrace.Option{gcptrace.WithProjectID(cfg.otelProjectID)}
-	if cfg.cloudTraceEndpoint != "" {
-		traceOpts = append(traceOpts, gcptrace.WithTraceClientOptions([]option.ClientOption{option.WithEndpoint(cfg.cloudTraceEndpoint)}))
+	var traceProvider *sdktrace.TracerProvider
+	if cfg.enableProbeTracing {
+		traceOpts := []gcptrace.Option{gcptrace.WithProjectID(cfg.otelProjectID)}
+		if cfg.cloudTraceEndpoint != "" {
+			traceOpts = append(traceOpts, gcptrace.WithTraceClientOptions([]option.ClientOption{option.WithEndpoint(cfg.cloudTraceEndpoint)}))
+		}
+		traceExp, traceErr := gcptrace.New(traceOpts...)
+		if traceErr != nil {
+			return nil, fmt.Errorf("create cloud trace exporter: %w", traceErr)
+		}
+		traceProvider = sdktrace.NewTracerProvider(
+			sdktrace.WithSampler(sdktrace.TraceIDRatioBased(cfg.otelTraceSamplingFraction)),
+			sdktrace.WithBatcher(traceExp),
+			sdktrace.WithResource(res),
+		)
+		otel.SetTracerProvider(traceProvider)
+	} else {
+		otel.SetTracerProvider(oteltrace.NewNoopTracerProvider())
 	}
-	traceExp, err := gcptrace.New(traceOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("create cloud trace exporter: %w", err)
-	}
-	traceProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(cfg.otelTraceSamplingFraction)),
-		sdktrace.WithBatcher(traceExp),
-		sdktrace.WithResource(res),
-	)
-	otel.SetTracerProvider(traceProvider)
 
 	metricOpts := []gcpmetric.Option{
 		gcpmetric.WithProjectID(cfg.otelProjectID),
@@ -328,10 +332,11 @@ func initializeOpenTelemetry(ctx context.Context, cfg config) (*otelRuntime, err
 
 	return &otelRuntime{
 		shutdown: func(shutdownCtx context.Context) error {
-			return errors.Join(
-				meterProvider.Shutdown(shutdownCtx),
-				traceProvider.Shutdown(shutdownCtx),
-			)
+			metricErr := meterProvider.Shutdown(shutdownCtx)
+			if traceProvider == nil {
+				return metricErr
+			}
+			return errors.Join(metricErr, traceProvider.Shutdown(shutdownCtx))
 		},
 		meterProvider:    meterProvider,
 		tracer:           otel.Tracer("gbypass"),
@@ -369,7 +374,7 @@ func newClient(ctx context.Context, cfg config, otelState *otelRuntime) (*spanne
 		SessionPoolConfig:          spanner.DefaultSessionPoolConfig,
 		DisableRouteToLeader:       false,
 		OpenTelemetryMeterProvider: otelState.meterProvider,
-		EnableEndToEndTracing:      cfg.enableSpannerEndToEndTracing,
+		EnableEndToEndTracing:      cfg.enableSpannerEndToEndTracing && cfg.enableOTEL && cfg.enableProbeTracing,
 	}
 	return spanner.NewClientWithConfig(ctx, cfg.databasePath, clientConfig, opts...)
 }

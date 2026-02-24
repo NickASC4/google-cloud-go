@@ -18,9 +18,12 @@ package spanner
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"cloud.google.com/go/internal/trace"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -84,6 +87,19 @@ func larJSONPayloadAttrs(jsonPayload string) []attribute.KeyValue {
 		attrs = append(attrs, attribute.Bool("payload_json_partially_emitted", true))
 	}
 	return attrs
+}
+
+func larRoutingHintDecodedHex(req *sppb.ExecuteSqlRequest) string {
+	if req == nil || req.GetRoutingHint() == nil {
+		return ""
+	}
+	hint := req.GetRoutingHint()
+	parts := []string{
+		fmt.Sprintf("schema_generation_hex=%s", hex.EncodeToString(hint.GetSchemaGeneration())),
+		fmt.Sprintf("key_hex=%s", hex.EncodeToString(hint.GetKey())),
+		fmt.Sprintf("limit_key_hex=%s", hex.EncodeToString(hint.GetLimitKey())),
+	}
+	return strings.Join(parts, " ")
 }
 
 func attrsToMap(attrs ...attribute.KeyValue) map[string]interface{} {
