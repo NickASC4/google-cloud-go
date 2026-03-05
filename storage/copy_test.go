@@ -24,38 +24,43 @@ func TestCopyMissingFields(t *testing.T) {
 	// Verify that copying checks for missing fields.
 	t.Parallel()
 	var tests = []struct {
+		desc                                     string
 		srcBucket, srcName, destBucket, destName string
 		errMsg                                   string
 	}{
 		{
+			"missing source name",
 			"mybucket", "", "mybucket", "destname",
 			"storage: object name is empty",
 		},
 		{
+			"missing destination name",
 			"mybucket", "srcname", "mybucket", "",
 			"storage: object name is empty",
 		},
 		{
+			"missing source bucket",
 			"", "srcfile", "mybucket", "destname",
 			"storage: bucket name is empty",
 		},
 		{
+			"missing destination bucket",
 			"mybucket", "srcfile", "", "destname",
 			"storage: bucket name is empty",
 		},
 	}
 	ctx := context.Background()
 	client := mockClient(t, &mockTransport{})
-	for i, test := range tests {
+	for _, test := range tests {
 		src := client.Bucket(test.srcBucket).Object(test.srcName)
 		dst := client.Bucket(test.destBucket).Object(test.destName)
 		_, err := dst.CopierFrom(src).Run(ctx)
 		if err == nil {
-			t.Errorf("CopyTo test #%v: got nil, want error", i)
+			t.Errorf("CopyTo %s: got nil, want error", test.desc)
 			continue
 		}
 		if !strings.Contains(err.Error(), test.errMsg) {
-			t.Errorf("CopyTo test #%v:\ngot err  %q\nwant err %q", i, err, test.errMsg)
+			t.Errorf("CopyTo %s:\ngot err  %q\nwant err %q", test.desc, err, test.errMsg)
 		}
 	}
 }
