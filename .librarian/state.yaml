@@ -1362,7 +1362,7 @@ libraries:
       - internal/generated/snippets/certificatemanager/
     tag_format: '{id}/v{version}'
   - id: ces
-    version: 0.1.0
+    version: 0.2.0
     last_generated_commit: c83d354f79b02e3dc98f22248e22851fcf9b961d
     apis:
       - path: google/cloud/ces/v1beta
