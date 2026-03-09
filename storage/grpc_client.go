@@ -78,7 +78,10 @@ const (
 
 // defaultGRPCOptions returns a set of the default client options
 // for gRPC client initialization.
-func defaultGRPCOptions() []option.ClientOption {
+// defaultGRPCOptions returns a set of the default client options
+// to be used by the gRPC-based storage client.
+// if withDP is false, DirectPath options are not added.
+func defaultGRPCOptions(withDP bool) []option.ClientOption {
 	defaults := []option.ClientOption{
 		option.WithGRPCConnectionPool(defaultConnPoolSize),
 	}
@@ -103,7 +106,7 @@ func defaultGRPCOptions() []option.ClientOption {
 			option.WithoutAuthentication(),
 			WithDisabledClientMetrics(),
 		)
-	} else {
+	} else if withDP {
 		// Only enable DirectPath when the emulator is not being targeted.
 		defaults = append(defaults,
 			internaloption.AllowNonDefaultServiceAccount(true),
@@ -149,7 +152,17 @@ func enableClientMetrics(ctx context.Context, s *settings, config storageConfig)
 // Storage API.
 func newGRPCStorageClient(ctx context.Context, opts ...storageOption) (*grpcStorageClient, error) {
 	s := initSettings(opts...)
-	s.clientOption = append(defaultGRPCOptions(), s.clientOption...)
+
+	withDP := true
+	for _, opt := range s.clientOption {
+		if fmt.Sprintf("%T", opt) == "internaloption.enableDirectPath" ||
+			fmt.Sprintf("%T", opt) == "internaloption.enableDirectPathXds" {
+			withDP = false
+			break
+		}
+	}
+
+	s.clientOption = append(defaultGRPCOptions(withDP), s.clientOption...)
 	// Disable all gax-level retries in favor of retry logic in the veneer client.
 	s.gax = append(s.gax, gax.WithRetry(nil), gax.WithTimeout(0))
 
