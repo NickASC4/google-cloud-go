@@ -155,8 +155,8 @@ func newGRPCStorageClient(ctx context.Context, opts ...storageOption) (*grpcStor
 
 	withDP := true
 	for _, opt := range s.clientOption {
-		if fmt.Sprintf("%T", opt) == "internaloption.enableDirectPath" ||
-			fmt.Sprintf("%T", opt) == "internaloption.enableDirectPathXds" {
+		typeName := fmt.Sprintf("%T", opt)
+		if typeName == "internaloption.enableDirectPath" || typeName == "internaloption.enableDirectPathXds" {
 			withDP = false
 			break
 		}
