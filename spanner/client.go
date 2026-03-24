@@ -1060,7 +1060,7 @@ func (c *Client) prepareTransaction(ctx context.Context, options TransactionOpti
 		return nil, err
 	}
 
-	return &preparedTransaction{c: c, sh: sh, t: t}, nil
+	return &preparedTransaction{c: c, sh: t.sh, t: t}, nil
 }
 
 type preparedTransaction struct {
@@ -1119,13 +1119,15 @@ func (c *Client) rwTransactionWithPreparedTransaction(ctx context.Context, sh *s
 				return ToSpannerError(err)
 			}
 		} else {
-			var previousTx transactionID
-			if t != nil {
-				previousTx = t.previousTx
-			}
-			t = &ReadWriteTransaction{
-				txReadyOrClosed: make(chan struct{}),
-				previousTx:      previousTx,
+			if t == nil || t.tx == nil || attempt > 0 {
+				var previousTx transactionID
+				if t != nil {
+					previousTx = t.previousTx
+				}
+				t = &ReadWriteTransaction{
+					txReadyOrClosed: make(chan struct{}),
+					previousTx:      previousTx,
+				}
 			}
 			t.txReadOnly.sh = sh
 		}

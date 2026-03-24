@@ -1826,14 +1826,21 @@ func TestClient_PreparedTransaction_SessionNotFoundOnBeginTransaction(t *testing
 	}
 
 	requests := drainRequestsFromServer(server.TestSpanner)
+	// Remove any BatchCreateSessionsRequest from the requests that we compare with,
+	// as it could be that the session maintainer manages to replace the session while
+	// the test is still running.
+	var filteredRequests []interface{}
+	for _, r := range requests {
+		if _, ok := r.(*sppb.BatchCreateSessionsRequest); !ok {
+			filteredRequests = append(filteredRequests, r)
+		}
+	}
 	if err := compareRequests([]interface{}{
-		&sppb.BatchCreateSessionsRequest{},
 		&sppb.BeginTransactionRequest{},
 		&sppb.BeginTransactionRequest{}, // Retry due to SessionNotFound
-		&sppb.BatchCreateSessionsRequest{},
 		&sppb.ExecuteSqlRequest{},
 		&sppb.CommitRequest{},
-	}, requests); err != nil {
+	}, filteredRequests); err != nil {
 		t.Fatal(err)
 	}
 }
