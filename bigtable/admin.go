@@ -674,7 +674,7 @@ func (ac *AdminClient) UpdateTableWithAutomatedBackupPolicy(ctx context.Context,
 		// Update Frequency
 		req.UpdateMask.Paths = append(req.UpdateMask.Paths, automatedBackupPolicyFieldMask+"."+frequencyFieldMaskPath)
 	}
-	if len(automatedBackupPolicy.Locations) > 0 {
+	if automatedBackupPolicy.Locations != nil {
 		// Update Locations
 		req.UpdateMask.Paths = append(req.UpdateMask.Paths, automatedBackupPolicyFieldMask+"."+locationsFieldMaskPath)
 	}
