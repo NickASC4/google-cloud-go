@@ -201,7 +201,7 @@ func TestTableAdmin_CreateTableFromConf_AutomatedBackupPolicy_Valid(t *testing.T
 		t.Fatalf("Frequency not valid: %v", err)
 	}
 	automatedBackupPolicy := TableAutomatedBackupPolicy{
-		RetentionPeriod: retentionPeriod, 
+		RetentionPeriod: retentionPeriod,
 		Frequency:       frequency,
 		Locations:       []string{"projects/my-cool-project/locations/us-east1-b"},
 	}
