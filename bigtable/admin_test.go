@@ -203,7 +203,7 @@ func TestTableAdmin_CreateTableFromConf_AutomatedBackupPolicy_Valid(t *testing.T
 	automatedBackupPolicy := TableAutomatedBackupPolicy{
 		RetentionPeriod: retentionPeriod, 
 		Frequency:       frequency,
-		Locations:       []string{"projects/my-cool-project/locations/us-east1-b"}
+		Locations:       []string{"projects/my-cool-project/locations/us-east1-b"},
 	}
 
 	err = c.CreateTableFromConf(context.Background(), &TableConf{TableID: "My-table", AutomatedBackupConfig: &automatedBackupPolicy})
@@ -679,7 +679,7 @@ func TestTableAdmin_UpdateTableWithAutomatedBackupPolicy_Valid(t *testing.T) {
 	automatedBackupPolicy := TableAutomatedBackupPolicy{
 		RetentionPeriod: retentionPeriod,
 		Frequency:       frequency,
-		Locations:       []string{"projects/my-cool-project/locations/us-east1-b"}
+		Locations:       []string{"projects/my-cool-project/locations/us-east1-b"},
 	}
 
 	err = c.UpdateTableWithAutomatedBackupPolicy(context.Background(), "My-table", automatedBackupPolicy)
